@@ -16,11 +16,4 @@ interface IEthAaveLeverageStrategy is ILeverageStrategy {
      * @param amount The amount of assets received
      */
     event AssetsReceived(address sender, uint256 amount);
-
-    /**
-     * @notice Initializes the strategy with the given vault and owner
-     * @param _vault The address of the vault
-     * @param _owner The address of the owner
-     */
-    function initialize(address _vault, address _owner) external;
 }

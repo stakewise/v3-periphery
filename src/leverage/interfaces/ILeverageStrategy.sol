@@ -69,6 +69,30 @@ interface ILeverageStrategy is IFlashLoanRecipient {
     function vault() external view returns (address);
 
     /**
+     * @notice Strategy Unique Identifier
+     * @return The unique identifier of the strategy
+     */
+    function strategyId() external pure returns (bytes32);
+
+    /**
+     * @notice Version
+     * @return The version of the Strategy implementation contract
+     */
+    function version() external pure returns (uint8);
+
+    /**
+     * @notice Implementation
+     * @return The address of the Strategy implementation contract
+     */
+    function implementation() external view returns (address);
+
+    /**
+     * @notice Initializes the strategy
+     * @param params The initialization parameters
+     */
+    function initialize(bytes calldata params) external;
+
+    /**
      * @notice Approves the osToken transfers from the user to the strategy
      * @param osTokenShares Amount of osToken shares to approve
      * @param deadline Unix timestamp after which the transaction will revert

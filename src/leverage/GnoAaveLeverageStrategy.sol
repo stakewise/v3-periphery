@@ -2,36 +2,26 @@
 
 pragma solidity ^0.8.26;
 
-import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
-import {IEthVault} from '@stakewise-core/interfaces/IEthVault.sol';
-import {Errors} from '@stakewise-core/libraries/Errors.sol';
-import {IWETHGateway} from '../misc/interfaces/IWETHGateway.sol';
-import {IEthAaveLeverageStrategy, ILeverageStrategy} from './interfaces/IEthAaveLeverageStrategy.sol';
+import {IGnoVault} from '@stakewise-core/interfaces/IGnoVault.sol';
+import {IGnoAaveLeverageStrategy, ILeverageStrategy} from './interfaces/IGnoAaveLeverageStrategy.sol';
 import {AaveLeverageStrategy, LeverageStrategy} from './AaveLeverageStrategy.sol';
 
 /**
- * @title EthAaveLeverageStrategy
+ * @title GnoAaveLeverageStrategy
  * @author StakeWise
- * @notice Defines the Aave leverage strategy functionality on Ethereum
+ * @notice Defines the Aave leverage strategy functionality on Gnosis
  */
-contract EthAaveLeverageStrategy is
-    Initializable,
-    ReentrancyGuardUpgradeable,
-    AaveLeverageStrategy,
-    IEthAaveLeverageStrategy
-{
+contract GnoAaveLeverageStrategy is Initializable, AaveLeverageStrategy, IGnoAaveLeverageStrategy {
     uint256 private constant _wad = 1e18;
     uint8 private constant _version = 1;
-
-    IWETHGateway private immutable _wethGateway;
 
     /**
      * @dev Constructor
      * @param osToken The address of the OsToken contract
-     * @param assetToken The address of the asset token contract (e.g. WETH)
+     * @param assetToken The address of the asset token contract (e.g. GNO)
      * @param osTokenVaultController The address of the OsTokenVaultController contract
      * @param osTokenConfig The address of the OsTokenConfig contract
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
@@ -40,7 +30,6 @@ contract EthAaveLeverageStrategy is
      * @param aavePool The address of the Aave pool contract
      * @param aavePoolDataProvider The address of the Aave pool data provider contract
      * @param aaveOracle The address of the Aave oracle contract
-     * @param wethGateway The address of the WETH gateway contract
      */
     constructor(
         address osToken,
@@ -52,8 +41,7 @@ contract EthAaveLeverageStrategy is
         address balancerFeesCollector,
         address aavePool,
         address aavePoolDataProvider,
-        address aaveOracle,
-        address wethGateway
+        address aaveOracle
     )
         AaveLeverageStrategy(
             osToken,
@@ -67,19 +55,17 @@ contract EthAaveLeverageStrategy is
             aavePoolDataProvider,
             aaveOracle
         )
-    {
-        _wethGateway = IWETHGateway(wethGateway);
-    }
+    {}
 
     /// @inheritdoc ILeverageStrategy
     function initialize(bytes calldata params) external initializer {
         (address _vault, address _owner) = abi.decode(params, (address, address));
-        __EthAaveLeverageStrategy_init(_vault, _owner);
+        __GnoAaveLeverageStrategy_init(_vault, _owner);
     }
 
     /// @inheritdoc ILeverageStrategy
     function strategyId() public pure override(ILeverageStrategy, LeverageStrategy) returns (bytes32) {
-        return keccak256('EthAaveLeverageStrategy');
+        return keccak256('GnoAaveLeverageStrategy');
     }
 
     /// @inheritdoc ILeverageStrategy
@@ -89,43 +75,29 @@ contract EthAaveLeverageStrategy is
 
     /// @inheritdoc LeverageStrategy
     function _mintOsTokenShares(address _vault, uint256 assets) internal override returns (uint256) {
-        _wethGateway.withdraw(assets);
         (uint256 stakedAssets, uint256 osTokenShares) = _getVaultState(_vault);
         uint256 vaultLtv = _getVaultLtv(_vault);
         uint256 maxOsTokenAssets = Math.mulDiv(stakedAssets + assets, vaultLtv, _wad);
         uint256 osTokenAssets = _osTokenVaultController.convertToAssets(osTokenShares);
         uint256 osTokenSharesToMint = _osTokenVaultController.convertToShares(maxOsTokenAssets - osTokenAssets);
-        return IEthVault(_vault).depositAndMintOsToken{value: assets}(address(this), osTokenSharesToMint, address(0));
+        IGnoVault(_vault).deposit(assets, address(this), address(0));
+        IGnoVault(_vault).mintOsToken(address(this), osTokenSharesToMint, address(0));
+        return osTokenSharesToMint;
     }
 
     /// @inheritdoc LeverageStrategy
-    function _transferAssets(address receiver, uint256 amount) internal override nonReentrant {
-        _wethGateway.withdraw(amount);
-        Address.sendValue(payable(receiver), amount);
+    function _transferAssets(address receiver, uint256 amount) internal override {
+        SafeERC20.safeTransfer(_assetToken, receiver, amount);
     }
 
     /**
-     * @dev Fallback function to receive ETH from WETH gateway and OsTokenVaultEscrow
-     */
-    receive() external payable {
-        if (msg.sender == address(_wethGateway)) {
-            emit AssetsReceived(msg.sender, msg.value);
-        } else if (msg.sender == address(_osTokenVaultEscrow)) {
-            // convert ETH to WETH
-            _wethGateway.deposit{value: msg.value}();
-        }
-        revert Errors.AccessDenied();
-    }
-
-    /**
-     * @dev Initializes the EthAaveLeverageStrategy contract
+     * @dev Initializes the GnoAaveLeverageStrategy contract
      * @param _vault The address of the vault
      * @param _owner The address of the owner
      */
-    function __EthAaveLeverageStrategy_init(address _vault, address _owner) internal onlyInitializing {
+    function __GnoAaveLeverageStrategy_init(address _vault, address _owner) internal onlyInitializing {
         __AaveLeverageStrategy_init(_vault, _owner);
-        __ReentrancyGuard_init();
-        _assetToken.approve(address(_wethGateway), type(uint256).max);
+        _assetToken.approve(vault, type(uint256).max);
     }
 
     /**

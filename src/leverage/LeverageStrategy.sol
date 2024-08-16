@@ -7,6 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
+import {ERC1967Utils} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
@@ -21,6 +22,7 @@ import {IVaultVersion} from '@stakewise-core/interfaces/IVaultVersion.sol';
 import {IBalancerVault} from './interfaces/IBalancerVault.sol';
 import {IBalancerFeesCollector} from './interfaces/IBalancerFeesCollector.sol';
 import {ILeverageStrategy, IFlashLoanRecipient} from './interfaces/ILeverageStrategy.sol';
+import {IStrategiesRegistry} from '../interfaces/IStrategiesRegistry.sol';
 
 /**
  * @title LeverageStrategy
@@ -35,10 +37,11 @@ abstract contract LeverageStrategy is
     ILeverageStrategy
 {
     uint256 private constant _wad = 1e18;
+    bytes4 private constant _initSelector = bytes4(keccak256('initialize(bytes)'));
 
     // OsToken
-    IOsTokenVaultController private immutable _osTokenVaultController;
-    IOsTokenConfig private immutable _osTokenConfig;
+    IOsTokenVaultController internal immutable _osTokenVaultController;
+    IOsTokenConfig internal immutable _osTokenConfig;
     IOsTokenVaultEscrow internal immutable _osTokenVaultEscrow;
 
     // Balancer
@@ -47,6 +50,8 @@ abstract contract LeverageStrategy is
 
     IERC20 internal immutable _osToken;
     IERC20 internal immutable _assetToken;
+
+    IStrategiesRegistry internal immutable _strategiesRegistry;
 
     /// @inheritdoc ILeverageStrategy
     address public vault;
@@ -295,6 +300,11 @@ abstract contract LeverageStrategy is
         }
     }
 
+    /// @inheritdoc UUPSUpgradeable
+    function upgradeToAndCall(address newImplementation, bytes memory data) public payable override onlyProxy {
+        super.upgradeToAndCall(newImplementation, abi.encodeWithSelector(_initSelector, data));
+    }
+
     /// @inheritdoc ILeverageStrategy
     function getUserAssets() external view returns (uint256, uint256) {
         (uint256 borrowedAssets, uint256 suppliedOsTokenShares) = _getBorrowState();
@@ -334,6 +344,11 @@ abstract contract LeverageStrategy is
             Math.mulDiv(mintedOsTokenShares, _getVaultLtv(_vault), _wad)
         );
         return (0, stakedAssets > reservedAssets ? stakedAssets - reservedAssets : 0);
+    }
+
+    /// @inheritdoc ILeverageStrategy
+    function implementation() external view returns (address) {
+        return ERC1967Utils.getImplementation();
     }
 
     /**
@@ -432,8 +447,8 @@ abstract contract LeverageStrategy is
      * @param _vault The address of the vault
      * @return The vault LTV
      */
-    function _getVaultLtv(address _vault) private view returns (uint256) {
-        return _osTokenConfig.getConfig(_vault).ltvPercent;
+    function _getVaultLtv(address _vault) internal view returns (uint256) {
+        return Math.min(_osTokenConfig.getConfig(_vault).ltvPercent, _strategiesRegistry.vaultMaxLtvPercent());
     }
 
     /**
@@ -442,7 +457,7 @@ abstract contract LeverageStrategy is
      * @return stakedAssets The amount of staked assets
      * @return mintedOsTokenShares The amount of minted osToken shares
      */
-    function _getVaultState(address _vault) private view returns (uint256 stakedAssets, uint256 mintedOsTokenShares) {
+    function _getVaultState(address _vault) internal view returns (uint256 stakedAssets, uint256 mintedOsTokenShares) {
         // check harvested
         if (IVaultState(_vault).isStateUpdateRequired()) {
             revert Errors.NotHarvested();
@@ -450,6 +465,24 @@ abstract contract LeverageStrategy is
         stakedAssets = IVaultState(_vault).convertToAssets(IVaultState(_vault).getShares(address(this)));
         mintedOsTokenShares = IVaultOsToken(_vault).osTokenPositions(address(this));
     }
+
+    /// @inheritdoc UUPSUpgradeable
+    function _authorizeUpgrade(address newImplementation) internal view override onlyOwner {
+        if (
+            newImplementation == address(0) || ERC1967Utils.getImplementation() == newImplementation // cannot reinit the same implementation
+                || ILeverageStrategy(newImplementation).strategyId() != strategyId() // strategy must be of the same type
+                || ILeverageStrategy(newImplementation).version() != version() + 1 // strategy cannot skip versions between
+                || !_strategiesRegistry.strategyImpls(newImplementation) // new implementation must be registered
+        ) {
+            revert Errors.UpgradeFailed();
+        }
+    }
+
+    /// @inheritdoc ILeverageStrategy
+    function strategyId() public pure virtual returns (bytes32);
+
+    /// @inheritdoc ILeverageStrategy
+    function version() public pure virtual returns (uint8);
 
     /**
      * @dev Deposits assets to the vault and mints osToken shares
@@ -508,9 +541,6 @@ abstract contract LeverageStrategy is
      * @param amount The amount of assets to transfer
      */
     function _transferAssets(address receiver, uint256 amount) internal virtual;
-
-    /// @inheritdoc UUPSUpgradeable
-    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     /**
      * @dev Initializes the LeverageStrategy contract
