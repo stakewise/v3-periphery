@@ -2,17 +2,20 @@
 
 pragma solidity ^0.8.26;
 
+import {IKeeperRewards} from '@stakewise-core/interfaces/IKeeperRewards.sol';
 import {IFlashLoanRecipient} from './IFlashLoanRecipient.sol';
+import {IStrategy} from '../../interfaces/IStrategy.sol';
 
 /**
- * @title IOsTokenVaultEscrow
+ * @title ILeverageStrategy
  * @author StakeWise
- * @notice Interface for OsTokenVaultEscrow contract
+ * @notice Interface for LeverageStrategy contract
  */
-interface ILeverageStrategy is IFlashLoanRecipient {
+interface ILeverageStrategy is IFlashLoanRecipient, IStrategy {
     error InvalidFlashloanAction();
+    error ExitQueueNotEntered();
     error InvalidExitQueuePercent();
-    error InvalidExitPositionTickets();
+    error InvalidExitQueueTicket();
 
     /**
      * @notice Enum for flashloan actions
@@ -25,112 +28,136 @@ interface ILeverageStrategy is IFlashLoanRecipient {
     }
 
     /**
-     * @notice Struct to store the exit position details
+     * @notice Struct to store the exit position
      * @param positionTicket The exit position ticket
-     * @param osTokenShares The amount of osToken shares to burn
+     * @param timestamp The timestamp of the exit position
+     * @param exitQueueIndex The index of the exit position in the processed queue
      */
     struct ExitPosition {
         uint256 positionTicket;
-        uint256 osTokenShares;
+        uint256 timestamp;
+        uint256 exitQueueIndex;
     }
 
     /**
+     * @notice Event emitted when the strategy proxy is created
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @param proxy The address of the proxy created
+     */
+    event StrategyProxyCreated(address indexed vault, address indexed user, address proxy);
+
+    /**
      * @notice Deposit assets to the strategy
+     * @param vault The address of the vault
+     * @param user The address of the user
      * @param osTokenShares Amount of osToken shares to deposit
      * @param assets Amount of assets leveraged
      */
-    event Deposited(uint256 osTokenShares, uint256 assets);
+    event Deposited(address indexed vault, address indexed user, uint256 osTokenShares, uint256 assets);
 
     /**
      * @notice Enter the OsToken escrow exit queue
-     * @param positionPercent Percent of the position to exit from strategy
-     * @param exitQueueShares Amount of osToken shares to transfer to the escrow
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @param positionTicket The exit position ticket
+     * @param timestamp The timestamp of the exit position ticket
+     * @param osTokenShares The amount of osToken shares to exit
      */
-    event ExitQueueEntered(uint256 positionPercent, uint256 exitQueueShares);
-
-    /**
-     * @notice Processes exited assets
-     * @param exitPositionTickets The exit position tickets
-     * @param timestamps The timestamps of the exit position tickets
-     */
-    event ExitedAssetsProcessed(uint256[] exitPositionTickets, uint256[] timestamps);
+    event ExitQueueEntered(
+        address indexed vault, address indexed user, uint256 positionTicket, uint256 timestamp, uint256 osTokenShares
+    );
 
     /**
      * @notice Claim exited assets
      * @param osTokenShares The amount of osToken shares claimed by the user
      * @param assets The amount of assets claimed by the user
      */
-    event ExitedAssetsClaimed(uint256 osTokenShares, uint256 assets);
+    event ExitedAssetsClaimed(address indexed vault, address indexed user, uint256 osTokenShares, uint256 assets);
 
     /**
-     * @notice Address of the vault
-     * @return The address of the vault
+     * @notice Event emitted when the strategy proxy is upgraded
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @param strategy The address of the new strategy
      */
-    function vault() external view returns (address);
+    event StrategyProxyUpgraded(address indexed vault, address indexed user, address strategy);
 
     /**
-     * @notice Strategy Unique Identifier
-     * @return The unique identifier of the strategy
+     * @notice Get the strategy proxy address
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @return proxy The address of the strategy proxy
      */
-    function strategyId() external pure returns (bytes32);
+    function getStrategyProxy(address vault, address user) external view returns (address proxy);
 
     /**
-     * @notice Version
-     * @return The version of the Strategy implementation contract
+     * @notice Checks if the proxy is exiting
+     * @param proxy The address of the proxy
+     * @return isExiting True if the proxy is exiting
      */
-    function version() external pure returns (uint8);
+    function isStrategyProxyExiting(address proxy) external view returns (bool isExiting);
 
     /**
-     * @notice Implementation
-     * @return The address of the Strategy implementation contract
+     * @notice Updates the vault state
+     * @param vault The address of the vault
+     * @param harvestParams The harvest parameters
      */
-    function implementation() external view returns (address);
-
-    /**
-     * @notice Initializes the strategy
-     * @param params The initialization parameters
-     */
-    function initialize(bytes calldata params) external;
+    function updateVaultState(address vault, IKeeperRewards.HarvestParams calldata harvestParams) external;
 
     /**
      * @notice Approves the osToken transfers from the user to the strategy
+     * @param vault The address of the vault
      * @param osTokenShares Amount of osToken shares to approve
      * @param deadline Unix timestamp after which the transaction will revert
      * @param v ECDSA signature v
      * @param r ECDSA signature r
      * @param s ECDSA signature s
      */
-    function permit(uint256 osTokenShares, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
+    function permit(address vault, uint256 osTokenShares, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
 
     /**
      * @notice Deposit assets to the strategy
+     * @param vault The address of the vault
      * @param osTokenShares Amount of osToken shares to deposit
      */
-    function deposit(uint256 osTokenShares) external;
+    function deposit(address vault, uint256 osTokenShares) external;
 
     /**
-     * @notice Enter the OsToken escrow exit queue
-     * @param positionPercent The percent of the position to exit from the strategy
+     * @notice Enter the OsToken escrow exit queue. Can only be called by the position owner.
+     * @param vault The address of the vault
+     * @param positionPercent The percent of the position to exit from strategy
+     * @return positionTicket The exit position ticket
      */
-    function enterExitQueue(uint256 positionPercent) external;
+    function enterExitQueue(address vault, uint256 positionPercent) external returns (uint256 positionTicket);
 
     /**
-     * @notice Processes exited assets
-     * @param exitPositionTickets The exit position tickets
-     * @param timestamps The timestamps of the exit position tickets
+     * @notice Force enter the OsToken escrow exit queue. Can be called by anyone if approaching liquidation.
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @return positionTicket The exit position ticket
      */
-    function processExitedAssets(uint256[] calldata exitPositionTickets, uint256[] calldata timestamps) external;
+    function forceEnterExitQueue(address vault, address user) external returns (uint256 positionTicket);
 
     /**
-     * @notice Claim exited assets
-     * @param exitPositionTickets The exit position tickets to claim the assets from
+     * @notice Processes exited assets. Can be called by anyone.
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @param exitPosition The exit position to process
      */
-    function claimExitedAssets(uint256[] calldata exitPositionTickets) external;
+    function processExitedAssets(address vault, address user, ExitPosition calldata exitPosition) external;
 
     /**
-     * @notice Get the user assets in the strategy
-     * @return The amount of osToken shares that belong to the user
-     * @return assets The amount of assets that belong to the user
+     * @notice Claim exited assets. Can be called by anyone.
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @param exitPositionTicket The exit position ticket to claim the assets
      */
-    function getUserAssets() external view returns (uint256, uint256);
+    function claimExitedAssets(address vault, address user, uint256 exitPositionTicket) external;
+
+    /**
+     * @notice Upgrade the strategy proxy. Can only be called by the proxy owner.
+     * @param vault The address of the vault
+     */
+    function upgradeProxy(address vault) external;
 }

@@ -1,30 +1,27 @@
-// SPDX-License-Identifier: AGPL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 
 pragma solidity ^0.8.26;
 
 import {Ownable2Step, Ownable} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {Errors} from '@stakewise-core/libraries/Errors.sol';
 import {IStrategiesRegistry} from './interfaces/IStrategiesRegistry.sol';
+import {IStrategy} from './interfaces/IStrategy.sol';
 
 /**
  * @title StrategiesRegistry
  * @author StakeWise
- * @notice Defines the registry functionality that keeps track of Strategies, Factories and Strategy upgrades
+ * @notice Defines the registry functionality that keeps track of Strategies and their settings
  */
 contract StrategiesRegistry is Ownable2Step, IStrategiesRegistry {
     uint256 private constant _maxPercent = 1e18;
 
     /// @inheritdoc IStrategiesRegistry
-    mapping(address => bool) public strategies;
+    mapping(address strategy => bool enabled) public strategies;
 
     /// @inheritdoc IStrategiesRegistry
-    mapping(address => bool) public factories;
+    mapping(address proxy => bool exists) public strategyProxies;
 
-    /// @inheritdoc IStrategiesRegistry
-    mapping(address => bool) public strategyImpls;
-
-    /// @inheritdoc IStrategiesRegistry
-    uint256 public vaultMaxLtvPercent;
+    mapping(bytes32 strategyConfigId => bytes value) private _strategyConfigs;
 
     bool private _initialized;
 
@@ -34,50 +31,47 @@ contract StrategiesRegistry is Ownable2Step, IStrategiesRegistry {
     constructor() Ownable(msg.sender) {}
 
     /// @inheritdoc IStrategiesRegistry
-    function addStrategy(address strategy) external {
-        if (!factories[msg.sender] && msg.sender != owner()) revert Errors.AccessDenied();
-
-        strategies[strategy] = true;
-        emit StrategyAdded(msg.sender, strategy);
+    function getStrategyConfig(
+        bytes32 strategyId,
+        string calldata configName
+    ) external view returns (bytes memory value) {
+        return _strategyConfigs[keccak256(abi.encode(strategyId, configName))];
     }
 
     /// @inheritdoc IStrategiesRegistry
-    function addStrategyImpl(address newImpl) external onlyOwner {
-        if (strategyImpls[newImpl]) revert Errors.AlreadyAdded();
-        strategyImpls[newImpl] = true;
-        emit StrategyImplAdded(newImpl);
+    function setStrategy(address strategy, bool enabled) external onlyOwner {
+        if (strategy == address(0)) revert Errors.ZeroAddress();
+        if (strategies[strategy] == enabled) revert Errors.ValueNotChanged();
+        // update strategy
+        strategies[strategy] = enabled;
+        emit StrategyUpdated(msg.sender, strategy, enabled);
     }
 
     /// @inheritdoc IStrategiesRegistry
-    function removeStrategyImpl(address impl) external onlyOwner {
-        if (!strategyImpls[impl]) revert Errors.AlreadyRemoved();
-        strategyImpls[impl] = false;
-        emit StrategyImplRemoved(impl);
+    function addStrategyProxy(address proxy) external {
+        if (proxy == address(0)) revert Errors.ZeroAddress();
+
+        // only active strategies can add proxies
+        if (!strategies[msg.sender]) revert Errors.AccessDenied();
+        if (strategyProxies[proxy]) revert Errors.AlreadyAdded();
+
+        // add strategy proxy
+        strategyProxies[proxy] = true;
+        emit StrategyProxyAdded(msg.sender, proxy);
     }
 
     /// @inheritdoc IStrategiesRegistry
-    function addFactory(address factory) external onlyOwner {
-        if (factories[factory]) revert Errors.AlreadyAdded();
-        factories[factory] = true;
-        emit FactoryAdded(factory);
-    }
+    function setStrategyConfig(
+        bytes32 strategyId,
+        string calldata configName,
+        bytes calldata value
+    ) external onlyOwner {
+        // calculate strategy config ID
+        bytes32 strategyConfigId = keccak256(abi.encode(strategyId, configName));
 
-    /// @inheritdoc IStrategiesRegistry
-    function removeFactory(address factory) external onlyOwner {
-        if (!factories[factory]) revert Errors.AlreadyRemoved();
-        factories[factory] = false;
-        emit FactoryRemoved(factory);
-    }
-
-    /// @inheritdoc IStrategiesRegistry
-    function setVaultMaxLtvPercent(uint256 _vaultMaxLtvPercent) external onlyOwner {
-        // validate loan-to-value percent
-        if (_vaultMaxLtvPercent == 0 || _vaultMaxLtvPercent > _maxPercent) {
-            revert Errors.InvalidLtvPercent();
-        }
-
-        // emit event
-        emit VaultMaxLtvPercentUpdated(_vaultMaxLtvPercent);
+        // update strategy config
+        _strategyConfigs[strategyConfigId] = value;
+        emit StrategyConfigUpdated(strategyId, configName, value);
     }
 
     /// @inheritdoc IStrategiesRegistry

@@ -4,6 +4,8 @@ out = "out"
 libs = ["lib"]
 evm_version = "shanghai"
 via_ir = true
+ffi = true
+fs_permissions = [{ access = "read-write", path = ".forge-snapshots/"}]
 
 [fmt] # See https://book.getfoundry.sh/reference/config/formatter
 single_line_statement_block = "preserve"

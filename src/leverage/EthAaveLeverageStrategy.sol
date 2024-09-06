@@ -2,32 +2,19 @@
 
 pragma solidity ^0.8.26;
 
-import {Address} from '@openzeppelin/contracts/utils/Address.sol';
-import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
-import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
+import {WETH9} from '@aave-core/dependencies/weth/WETH9.sol';
 import {IEthVault} from '@stakewise-core/interfaces/IEthVault.sol';
-import {Errors} from '@stakewise-core/libraries/Errors.sol';
-import {IWETHGateway} from '../misc/interfaces/IWETHGateway.sol';
-import {IEthAaveLeverageStrategy, ILeverageStrategy} from './interfaces/IEthAaveLeverageStrategy.sol';
-import {AaveLeverageStrategy, LeverageStrategy} from './AaveLeverageStrategy.sol';
+import {IStrategy} from '../interfaces/IStrategy.sol';
+import {IStrategyProxy} from '../interfaces/IStrategyProxy.sol';
+import {LeverageStrategy} from './LeverageStrategy.sol';
+import {AaveLeverageStrategy} from './AaveLeverageStrategy.sol';
 
 /**
  * @title EthAaveLeverageStrategy
  * @author StakeWise
  * @notice Defines the Aave leverage strategy functionality on Ethereum
  */
-contract EthAaveLeverageStrategy is
-    Initializable,
-    ReentrancyGuardUpgradeable,
-    AaveLeverageStrategy,
-    IEthAaveLeverageStrategy
-{
-    uint256 private constant _wad = 1e18;
-    uint8 private constant _version = 1;
-
-    IWETHGateway private immutable _wethGateway;
-
+contract EthAaveLeverageStrategy is AaveLeverageStrategy {
     /**
      * @dev Constructor
      * @param osToken The address of the OsToken contract
@@ -35,12 +22,14 @@ contract EthAaveLeverageStrategy is
      * @param osTokenVaultController The address of the OsTokenVaultController contract
      * @param osTokenConfig The address of the OsTokenConfig contract
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
+     * @param strategiesRegistry The address of the StrategiesRegistry contract
+     * @param strategyProxyImplementation The address of the StrategyProxy implementation
      * @param balancerVault The address of the BalancerVault contract
      * @param balancerFeesCollector The address of the BalancerFeesCollector contract
      * @param aavePool The address of the Aave pool contract
      * @param aavePoolDataProvider The address of the Aave pool data provider contract
-     * @param aaveOracle The address of the Aave oracle contract
-     * @param wethGateway The address of the WETH gateway contract
+     * @param aaveOsToken The address of the Aave OsToken contract
+     * @param aaveVarDebtAssetToken The address of the Aave variable debt asset token contract
      */
     constructor(
         address osToken,
@@ -48,12 +37,14 @@ contract EthAaveLeverageStrategy is
         address osTokenVaultController,
         address osTokenConfig,
         address osTokenVaultEscrow,
+        address strategiesRegistry,
+        address strategyProxyImplementation,
         address balancerVault,
         address balancerFeesCollector,
         address aavePool,
         address aavePoolDataProvider,
-        address aaveOracle,
-        address wethGateway
+        address aaveOsToken,
+        address aaveVarDebtAssetToken
     )
         AaveLeverageStrategy(
             osToken,
@@ -61,77 +52,60 @@ contract EthAaveLeverageStrategy is
             osTokenVaultController,
             osTokenConfig,
             osTokenVaultEscrow,
+            strategiesRegistry,
+            strategyProxyImplementation,
             balancerVault,
             balancerFeesCollector,
             aavePool,
             aavePoolDataProvider,
-            aaveOracle
+            aaveOsToken,
+            aaveVarDebtAssetToken
         )
-    {
-        _wethGateway = IWETHGateway(wethGateway);
-    }
+    {}
 
-    /// @inheritdoc ILeverageStrategy
-    function initialize(bytes calldata params) external initializer {
-        (address _vault, address _owner) = abi.decode(params, (address, address));
-        __EthAaveLeverageStrategy_init(_vault, _owner);
-    }
-
-    /// @inheritdoc ILeverageStrategy
-    function strategyId() public pure override(ILeverageStrategy, LeverageStrategy) returns (bytes32) {
+    /// @inheritdoc IStrategy
+    function strategyId() public pure override returns (bytes32) {
         return keccak256('EthAaveLeverageStrategy');
     }
 
-    /// @inheritdoc ILeverageStrategy
-    function version() public pure override(ILeverageStrategy, LeverageStrategy) returns (uint8) {
-        return _version;
+    /// @inheritdoc LeverageStrategy
+    function _claimOsTokenVaultEscrowAssets(
+        address vault,
+        address proxy,
+        uint256 positionTicket
+    ) internal override returns (uint256 claimedAssets) {
+        claimedAssets = super._claimOsTokenVaultEscrowAssets(vault, proxy, positionTicket);
+        if (claimedAssets == 0) return 0;
+
+        // convert ETH to WETH
+        IStrategyProxy(proxy).executeWithValue(
+            address(_assetToken),
+            abi.encodeWithSelector(WETH9(payable(address(_assetToken))).deposit.selector),
+            claimedAssets
+        );
     }
 
     /// @inheritdoc LeverageStrategy
-    function _mintOsTokenShares(address _vault, uint256 assets) internal override returns (uint256) {
-        _wethGateway.withdraw(assets);
-        (uint256 stakedAssets, uint256 osTokenShares) = _getVaultState(_vault);
-        uint256 vaultLtv = _getVaultLtv(_vault);
-        uint256 maxOsTokenAssets = Math.mulDiv(stakedAssets + assets, vaultLtv, _wad);
-        uint256 osTokenAssets = _osTokenVaultController.convertToAssets(osTokenShares);
-        uint256 osTokenSharesToMint = _osTokenVaultController.convertToShares(maxOsTokenAssets - osTokenAssets);
-        return IEthVault(_vault).depositAndMintOsToken{value: assets}(address(this), osTokenSharesToMint, address(0));
+    function _mintOsTokenShares(address vault, address proxy, uint256 assets) internal override returns (uint256) {
+        IStrategyProxy(proxy).execute(
+            address(_assetToken), abi.encodeWithSelector(WETH9(payable(address(_assetToken))).withdraw.selector, assets)
+        );
+        uint256 balanceBefore = _osToken.balanceOf(proxy);
+        IStrategyProxy(proxy).executeWithValue(
+            vault,
+            abi.encodeWithSelector(
+                IEthVault(vault).depositAndMintOsToken.selector, proxy, type(uint256).max, address(0)
+            ),
+            assets
+        );
+        return _osToken.balanceOf(proxy) - balanceBefore;
     }
 
     /// @inheritdoc LeverageStrategy
-    function _transferAssets(address receiver, uint256 amount) internal override nonReentrant {
-        _wethGateway.withdraw(amount);
-        Address.sendValue(payable(receiver), amount);
+    function _transferAssets(address proxy, address receiver, uint256 amount) internal override {
+        IStrategyProxy(proxy).execute(
+            address(_assetToken), abi.encodeWithSelector(WETH9(payable(address(_assetToken))).withdraw.selector, amount)
+        );
+        IStrategyProxy(proxy).sendValue(payable(receiver), amount);
     }
-
-    /**
-     * @dev Fallback function to receive ETH from WETH gateway and OsTokenVaultEscrow
-     */
-    receive() external payable {
-        if (msg.sender == address(_wethGateway)) {
-            emit AssetsReceived(msg.sender, msg.value);
-        } else if (msg.sender == address(_osTokenVaultEscrow)) {
-            // convert ETH to WETH
-            _wethGateway.deposit{value: msg.value}();
-        }
-        revert Errors.AccessDenied();
-    }
-
-    /**
-     * @dev Initializes the EthAaveLeverageStrategy contract
-     * @param _vault The address of the vault
-     * @param _owner The address of the owner
-     */
-    function __EthAaveLeverageStrategy_init(address _vault, address _owner) internal onlyInitializing {
-        __AaveLeverageStrategy_init(_vault, _owner);
-        __ReentrancyGuard_init();
-        _assetToken.approve(address(_wethGateway), type(uint256).max);
-    }
-
-    /**
-     * @dev This empty reserved space is put in place to allow future versions to add new
-     * variables without shifting down storage in the inheritance chain.
-     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-     */
-    uint256[50] private __gap;
 }

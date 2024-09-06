@@ -2,27 +2,27 @@
 
 pragma solidity ^0.8.26;
 
-import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
-import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IPoolDataProvider} from '@aave-core/interfaces/IPoolDataProvider.sol';
 import {IPool} from '@aave-core/interfaces/IPool.sol';
-import {IPriceOracle} from '@aave-core/interfaces/IPriceOracle.sol';
+import {IScaledBalanceToken} from '@aave-core/interfaces/IScaledBalanceToken.sol';
+import {WadRayMath} from '@aave-core/protocol/libraries/math/WadRayMath.sol';
+import {IStrategyProxy} from '../interfaces/IStrategyProxy.sol';
 import {LeverageStrategy} from './LeverageStrategy.sol';
-import {IAaveLeverageStrategy} from './interfaces/IAaveLeverageStrategy.sol';
 
 /**
  * @title AaveLeverageStrategy
  * @author StakeWise
  * @notice Defines the Aave leverage strategy functionality
  */
-abstract contract AaveLeverageStrategy is Initializable, LeverageStrategy, IAaveLeverageStrategy {
+abstract contract AaveLeverageStrategy is LeverageStrategy {
     uint256 private constant _wad = 1e18;
 
     IPool private immutable _aavePool;
     IPoolDataProvider private immutable _aavePoolDataProvider;
-    IPriceOracle private immutable _aaveOracle;
+    IScaledBalanceToken private immutable _aaveOsToken;
+    IScaledBalanceToken private immutable _aaveVarDebtAssetToken;
 
     /**
      * @dev Constructor
@@ -31,11 +31,14 @@ abstract contract AaveLeverageStrategy is Initializable, LeverageStrategy, IAave
      * @param osTokenVaultController The address of the OsTokenVaultController contract
      * @param osTokenConfig The address of the OsTokenConfig contract
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
+     * @param strategiesRegistry The address of the StrategiesRegistry contract
+     * @param strategyProxyImplementation The address of the StrategyProxy implementation
      * @param balancerVault The address of the BalancerVault contract
      * @param balancerFeesCollector The address of the BalancerFeesCollector contract
      * @param aavePool The address of the Aave pool contract
      * @param aavePoolDataProvider The address of the Aave pool data provider contract
-     * @param aaveOracle The address of the Aave oracle contract
+     * @param aaveOsToken The address of the Aave OsToken contract
+     * @param aaveVarDebtAssetToken The address of the Aave variable debt asset token contract
      */
     constructor(
         address osToken,
@@ -43,11 +46,14 @@ abstract contract AaveLeverageStrategy is Initializable, LeverageStrategy, IAave
         address osTokenVaultController,
         address osTokenConfig,
         address osTokenVaultEscrow,
+        address strategiesRegistry,
+        address strategyProxyImplementation,
         address balancerVault,
         address balancerFeesCollector,
         address aavePool,
         address aavePoolDataProvider,
-        address aaveOracle
+        address aaveOsToken,
+        address aaveVarDebtAssetToken
     )
         LeverageStrategy(
             osToken,
@@ -55,73 +61,121 @@ abstract contract AaveLeverageStrategy is Initializable, LeverageStrategy, IAave
             osTokenVaultController,
             osTokenConfig,
             osTokenVaultEscrow,
+            strategiesRegistry,
+            strategyProxyImplementation,
             balancerVault,
             balancerFeesCollector
         )
     {
         _aavePool = IPool(aavePool);
         _aavePoolDataProvider = IPoolDataProvider(aavePoolDataProvider);
-        _aaveOracle = IPriceOracle(aaveOracle);
+        _aaveOsToken = IScaledBalanceToken(aaveOsToken);
+        _aaveVarDebtAssetToken = IScaledBalanceToken(aaveVarDebtAssetToken);
     }
 
     /// @inheritdoc LeverageStrategy
     function _getBorrowLtv() internal view override returns (uint256) {
         uint256 emodeCategory = _aavePoolDataProvider.getReserveEModeCategory(address(_osToken));
         // convert to 1e18 precision
-        return _aavePool.getEModeCategoryData(SafeCast.toUint8(emodeCategory)).ltv * 1e14;
+        uint256 aaveLtv = uint256(_aavePool.getEModeCategoryData(SafeCast.toUint8(emodeCategory)).ltv) * 1e14;
+
+        // check whether there is max borrow LTV percent set in the strategy config
+        bytes memory maxBorrowLtvPercentConfig =
+            _strategiesRegistry.getStrategyConfig(strategyId(), _maxBorrowLtvPercentConfigName);
+        if (maxBorrowLtvPercentConfig.length == 0) {
+            return aaveLtv;
+        }
+        return Math.min(aaveLtv, abi.decode(maxBorrowLtvPercentConfig, (uint256)));
     }
 
     /// @inheritdoc LeverageStrategy
-    function _getBorrowState() internal view override returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares) {
-        (uint256 totalCollateralBase, uint256 totalDebtBase,,,,) = _aavePool.getUserAccountData(address(this));
-        uint256 assetTokenPrice = _aaveOracle.getAssetPrice(address(_assetToken));
-        uint256 osTokenPrice = _aaveOracle.getAssetPrice(address(_osToken));
+    function _getBorrowState(address proxy)
+        internal
+        view
+        override
+        returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares)
+    {
+        suppliedOsTokenShares = _aaveOsToken.scaledBalanceOf(proxy);
+        if (suppliedOsTokenShares != 0) {
+            uint256 normalizedIncome = _aavePool.getReserveNormalizedIncome(address(_osToken));
+            suppliedOsTokenShares = WadRayMath.rayMul(suppliedOsTokenShares, normalizedIncome);
+        }
 
-        borrowedAssets = Math.mulDiv(totalDebtBase, _wad, assetTokenPrice);
-        suppliedOsTokenShares = Math.mulDiv(totalCollateralBase, _wad, osTokenPrice);
+        borrowedAssets = _aaveVarDebtAssetToken.scaledBalanceOf(proxy);
+        if (borrowedAssets != 0) {
+            uint256 normalizedDebt = _aavePool.getReserveNormalizedVariableDebt(address(_assetToken));
+            borrowedAssets = WadRayMath.rayMul(borrowedAssets, normalizedDebt);
+        }
     }
 
     /// @inheritdoc LeverageStrategy
-    function _supplyOsTokenShares(uint256 osTokenShares) internal override {
-        _aavePool.supply(address(_osToken), osTokenShares, address(this), 0);
+    function _supplyOsTokenShares(address proxy, uint256 osTokenShares) internal override {
+        IStrategyProxy(proxy).execute(
+            address(_aavePool),
+            abi.encodeWithSelector(_aavePool.supply.selector, address(_osToken), osTokenShares, proxy, 0)
+        );
     }
 
     /// @inheritdoc LeverageStrategy
-    function _withdrawOsTokenShares(uint256 osTokenShares) internal override {
-        _aavePool.withdraw(address(_osToken), osTokenShares, address(this));
+    function _withdrawOsTokenShares(address proxy, uint256 osTokenShares) internal override {
+        IStrategyProxy(proxy).execute(
+            address(_aavePool),
+            abi.encodeWithSelector(_aavePool.withdraw.selector, address(_osToken), osTokenShares, proxy)
+        );
     }
 
     /// @inheritdoc LeverageStrategy
-    function _borrowAssets(uint256 amount) internal override {
-        _aavePool.borrow(address(_assetToken), amount, 2, 0, address(this));
+    function _borrowAssets(address proxy, uint256 amount) internal override {
+        IStrategyProxy(proxy).execute(
+            address(_aavePool),
+            abi.encodeWithSelector(_aavePool.borrow.selector, address(_assetToken), amount, 2, 0, proxy)
+        );
     }
 
     /// @inheritdoc LeverageStrategy
-    function _repayAssets(uint256 amount) internal override {
-        _aavePool.repay(address(_assetToken), amount, 2, address(this));
+    function _repayAssets(address proxy, uint256 amount) internal override {
+        IStrategyProxy(proxy).execute(
+            address(_aavePool), abi.encodeWithSelector(_aavePool.repay.selector, address(_assetToken), amount, 2, proxy)
+        );
     }
 
     /// @inheritdoc LeverageStrategy
-    function _getMaxBorrowAssets() internal view override returns (uint256 amount) {
-        (,, uint256 availableBorrowsBase,,,) = _aavePool.getUserAccountData(address(this));
-        return Math.mulDiv(availableBorrowsBase, _wad, _aaveOracle.getAssetPrice(address(_assetToken)));
+    function _getMaxBorrowAssets(address proxy) internal view override returns (uint256 amount) {
+        (uint256 borrowedAssets, uint256 suppliedOsTokenShares) = _getBorrowState(proxy);
+        if (suppliedOsTokenShares == 0) {
+            return 0;
+        }
+        uint256 suppliedOsTokenAssets = _osTokenVaultController.convertToAssets(suppliedOsTokenShares);
+        uint256 maxBorrowAssets = Math.mulDiv(suppliedOsTokenAssets, _getBorrowLtv(), _wad);
+        unchecked {
+            // cannot underflow because maxBorrowAssets >= borrowedAssets
+            return maxBorrowAssets > borrowedAssets ? maxBorrowAssets - borrowedAssets : 0;
+        }
     }
 
-    /**
-     * @dev Initializes the AaveLeverageStrategy contract
-     * @param _vault The address of the vault
-     * @param _owner The address of the owner
-     */
-    function __AaveLeverageStrategy_init(address _vault, address _owner) internal onlyInitializing {
-        __LeverageStrategy_init(_vault, _owner);
-        _osToken.approve(address(_aavePool), type(uint256).max);
-        _assetToken.approve(address(_aavePool), type(uint256).max);
-    }
+    /// @inheritdoc LeverageStrategy
+    function _getOrCreateStrategyProxy(
+        address vault,
+        address user
+    ) internal virtual override returns (address proxy, bool isCreated) {
+        (proxy, isCreated) = super._getOrCreateStrategyProxy(vault, user);
+        if (!isCreated) {
+            return (proxy, isCreated);
+        }
 
-    /**
-     * @dev This empty reserved space is put in place to allow future versions to add new
-     * variables without shifting down storage in the inheritance chain.
-     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-     */
-    uint256[50] private __gap;
+        // setup emode category
+        uint256 emodeCategory = _aavePoolDataProvider.getReserveEModeCategory(address(_osToken));
+        IStrategyProxy(proxy).execute(
+            address(_aavePool), abi.encodeWithSelector(_aavePool.setUserEMode.selector, SafeCast.toUint8(emodeCategory))
+        );
+
+        // approve Aave pool to spend OsToken and AssetToken
+        IStrategyProxy(proxy).execute(
+            address(_osToken), abi.encodeWithSelector(_osToken.approve.selector, address(_aavePool), type(uint256).max)
+        );
+        IStrategyProxy(proxy).execute(
+            address(_assetToken),
+            abi.encodeWithSelector(_assetToken.approve.selector, address(_aavePool), type(uint256).max)
+        );
+    }
 }

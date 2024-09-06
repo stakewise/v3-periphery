@@ -5,45 +5,33 @@ pragma solidity ^0.8.26;
 /**
  * @title IStrategiesRegistry
  * @author StakeWise
- * @notice Defines the interface for the StrategiesRegistry
+ * @notice Defines the interface for the StrategiesRegistry contract
  */
 interface IStrategiesRegistry {
-    /**
-     * @notice Event emitted on a Strategy addition
-     * @param caller The address that has added the Strategy
-     * @param strategy The address of the added strategy
-     */
-    event StrategyAdded(address indexed caller, address indexed strategy);
+    error InvalidStrategyId();
 
     /**
-     * @notice Event emitted on adding Strategy implementation contract
-     * @param impl The address of the new implementation contract
+     * @notice Event emitted on a Strategy update
+     * @param caller The address that called the function
+     * @param strategy The address of the updated strategy
+     * @param enabled The new status of the strategy
      */
-    event StrategyImplAdded(address indexed impl);
+    event StrategyUpdated(address indexed caller, address strategy, bool enabled);
 
     /**
-     * @notice Event emitted on removing Strategy implementation contract
-     * @param impl The address of the removed implementation contract
+     * @notice Event emitted on adding Strategy proxy contract
+     * @param strategy The address of the Strategy that added the proxy
+     * @param proxy The address of the added proxy
      */
-    event StrategyImplRemoved(address indexed impl);
+    event StrategyProxyAdded(address indexed strategy, address indexed proxy);
 
     /**
-     * @notice Event emitted on whitelisting the factory
-     * @param factory The address of the whitelisted factory
+     * @notice Event emitted on updating the strategy configuration
+     * @param strategyId The ID of the strategy to update the configuration
+     * @param configName The name of the configuration to update
+     * @param value The new value of the configuration
      */
-    event FactoryAdded(address indexed factory);
-
-    /**
-     * @notice Event emitted on removing the factory from the whitelist
-     * @param factory The address of the factory removed from the whitelist
-     */
-    event FactoryRemoved(address indexed factory);
-
-    /**
-     * @notice Event emitted on setting the maximum LTV percent for the vault to mint osTokens
-     * @param newVaultMaxLtvPercent The maximum leverage ratio in 1e18 precision
-     */
-    event VaultMaxLtvPercentUpdated(uint256 newVaultMaxLtvPercent);
+    event StrategyConfigUpdated(bytes32 indexed strategyId, string configName, bytes value);
 
     /**
      * @notice Registered Strategies
@@ -53,60 +41,43 @@ interface IStrategiesRegistry {
     function strategies(address strategy) external view returns (bool);
 
     /**
-     * @notice Maximum LTV percent for the vault to mint osTokens
-     * @return The maximum leverage ratio in 1e18 precision
+     * @notice Registered Strategy Proxies
+     * @param proxy The address of the proxy to check whether it is registered
+     * @return `true` for the registered Strategy proxy, `false` otherwise
      */
-    function vaultMaxLtvPercent() external view returns (uint256);
+    function strategyProxies(address proxy) external view returns (bool);
 
     /**
-     * @notice Registered Strategy implementations
-     * @param impl The address of the strategy implementation
-     * @return `true` for the registered implementation, `false` otherwise
+     * @notice Get strategy configuration
+     * @param strategyId The ID of the strategy to get the configuration
+     * @param configName The name of the configuration
+     * @return value The value of the configuration
      */
-    function strategyImpls(address impl) external view returns (bool);
+    function getStrategyConfig(
+        bytes32 strategyId,
+        string calldata configName
+    ) external view returns (bytes memory value);
 
     /**
-     * @notice Registered Factories
-     * @param factory The address of the factory to check whether it is whitelisted
-     * @return `true` for the whitelisted Factory, `false` otherwise
+     * @notice Set strategy configuration. Can only be called by the owner.
+     * @param strategyId The ID of the strategy to set the configuration
+     * @param configName The name of the configuration
+     * @param value The value of the configuration
      */
-    function factories(address factory) external view returns (bool);
+    function setStrategyConfig(bytes32 strategyId, string calldata configName, bytes calldata value) external;
 
     /**
-     * @notice Function for adding Strategy to the registry. Can only be called by the whitelisted Factory.
-     * @param strategy The address of the Strategy to add
+     * @notice Function for enabling/disabling the Strategy. Can only be called by the owner.
+     * @param strategy The address of the strategy to enable/disable
+     * @param enabled The new status of the strategy
      */
-    function addStrategy(address strategy) external;
+    function setStrategy(address strategy, bool enabled) external;
 
     /**
-     * @notice Function for adding Strategy implementation contract
-     * @param newImpl The address of the new implementation contract
+     * @notice Function for adding Strategy proxy contract. Can only be called by the registered strategy.
+     * @param proxy The address of the proxy to add
      */
-    function addStrategyImpl(address newImpl) external;
-
-    /**
-     * @notice Function for removing Strategy implementation contract
-     * @param impl The address of the removed implementation contract
-     */
-    function removeStrategyImpl(address impl) external;
-
-    /**
-     * @notice Function for adding the factory to the whitelist
-     * @param factory The address of the factory to add to the whitelist
-     */
-    function addFactory(address factory) external;
-
-    /**
-     * @notice Function for removing the factory from the whitelist
-     * @param factory The address of the factory to remove from the whitelist
-     */
-    function removeFactory(address factory) external;
-
-    /**
-     * @notice Function for setting the maximum LTV percent for the vault to mint osTokens. Can only be called by the owner.
-     * @param _vaultMaxLtvPercent The maximum leverage ratio in 1e18 precision
-     */
-    function setVaultMaxLtvPercent(uint256 _vaultMaxLtvPercent) external;
+    function addStrategyProxy(address proxy) external;
 
     /**
      * @notice Function for initializing the registry. Can only be called once during the deployment.
