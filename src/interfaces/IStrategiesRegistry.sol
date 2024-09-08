@@ -9,6 +9,7 @@ pragma solidity ^0.8.26;
  */
 interface IStrategiesRegistry {
     error InvalidStrategyId();
+    error InvalidStrategyProxyId();
 
     /**
      * @notice Event emitted on a Strategy update
@@ -21,9 +22,10 @@ interface IStrategiesRegistry {
     /**
      * @notice Event emitted on adding Strategy proxy contract
      * @param strategy The address of the Strategy that added the proxy
+     * @param strategyProxyId The ID of the added proxy
      * @param proxy The address of the added proxy
      */
-    event StrategyProxyAdded(address indexed strategy, address indexed proxy);
+    event StrategyProxyAdded(address indexed strategy, bytes32 indexed strategyProxyId, address indexed proxy);
 
     /**
      * @notice Event emitted on updating the strategy configuration
@@ -39,6 +41,13 @@ interface IStrategiesRegistry {
      * @return `true` for the registered Strategy, `false` otherwise
      */
     function strategies(address strategy) external view returns (bool);
+
+    /**
+     * @notice Get the strategy proxy address based on the strategy proxy ID
+     * @param strategyProxyId The ID of the strategy proxy to get the address
+     * @return The address of the strategy proxy
+     */
+    function strategyProxyIdToProxy(bytes32 strategyProxyId) external view returns (address);
 
     /**
      * @notice Registered Strategy Proxies
@@ -75,9 +84,10 @@ interface IStrategiesRegistry {
 
     /**
      * @notice Function for adding Strategy proxy contract. Can only be called by the registered strategy.
+     * @param strategyProxyId The ID of the proxy to add
      * @param proxy The address of the proxy to add
      */
-    function addStrategyProxy(address proxy) external;
+    function addStrategyProxy(bytes32 strategyProxyId, address proxy) external;
 
     /**
      * @notice Function for initializing the registry. Can only be called once during the deployment.

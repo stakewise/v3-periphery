@@ -30,11 +30,11 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
      * @param assetToken The address of the asset token contract (e.g. WETH)
      * @param osTokenVaultController The address of the OsTokenVaultController contract
      * @param osTokenConfig The address of the OsTokenConfig contract
+     * @param osTokenFlashLoans The address of the OsTokenFlashLoans contract
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
      * @param strategiesRegistry The address of the StrategiesRegistry contract
      * @param strategyProxyImplementation The address of the StrategyProxy implementation
      * @param balancerVault The address of the BalancerVault contract
-     * @param balancerFeesCollector The address of the BalancerFeesCollector contract
      * @param aavePool The address of the Aave pool contract
      * @param aavePoolDataProvider The address of the Aave pool data provider contract
      * @param aaveOsToken The address of the Aave OsToken contract
@@ -45,11 +45,11 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
         address assetToken,
         address osTokenVaultController,
         address osTokenConfig,
+        address osTokenFlashLoans,
         address osTokenVaultEscrow,
         address strategiesRegistry,
         address strategyProxyImplementation,
         address balancerVault,
-        address balancerFeesCollector,
         address aavePool,
         address aavePoolDataProvider,
         address aaveOsToken,
@@ -60,11 +60,11 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
             assetToken,
             osTokenVaultController,
             osTokenConfig,
+            osTokenFlashLoans,
             osTokenVaultEscrow,
             strategiesRegistry,
             strategyProxyImplementation,
-            balancerVault,
-            balancerFeesCollector
+            balancerVault
         )
     {
         _aavePool = IPool(aavePool);
@@ -137,20 +137,6 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
         IStrategyProxy(proxy).execute(
             address(_aavePool), abi.encodeWithSelector(_aavePool.repay.selector, address(_assetToken), amount, 2, proxy)
         );
-    }
-
-    /// @inheritdoc LeverageStrategy
-    function _getMaxBorrowAssets(address proxy) internal view override returns (uint256 amount) {
-        (uint256 borrowedAssets, uint256 suppliedOsTokenShares) = _getBorrowState(proxy);
-        if (suppliedOsTokenShares == 0) {
-            return 0;
-        }
-        uint256 suppliedOsTokenAssets = _osTokenVaultController.convertToAssets(suppliedOsTokenShares);
-        uint256 maxBorrowAssets = Math.mulDiv(suppliedOsTokenAssets, _getBorrowLtv(), _wad);
-        unchecked {
-            // cannot underflow because maxBorrowAssets >= borrowedAssets
-            return maxBorrowAssets > borrowedAssets ? maxBorrowAssets - borrowedAssets : 0;
-        }
     }
 
     /// @inheritdoc LeverageStrategy

@@ -19,6 +19,9 @@ contract StrategiesRegistry is Ownable2Step, IStrategiesRegistry {
     mapping(address strategy => bool enabled) public strategies;
 
     /// @inheritdoc IStrategiesRegistry
+    mapping(bytes32 strategyProxyId => address proxy) public strategyProxyIdToProxy;
+
+    /// @inheritdoc IStrategiesRegistry
     mapping(address proxy => bool exists) public strategyProxies;
 
     mapping(bytes32 strategyConfigId => bytes value) private _strategyConfigs;
@@ -48,7 +51,8 @@ contract StrategiesRegistry is Ownable2Step, IStrategiesRegistry {
     }
 
     /// @inheritdoc IStrategiesRegistry
-    function addStrategyProxy(address proxy) external {
+    function addStrategyProxy(bytes32 strategyProxyId, address proxy) external {
+        if (strategyProxyId == bytes32(0)) revert InvalidStrategyProxyId();
         if (proxy == address(0)) revert Errors.ZeroAddress();
 
         // only active strategies can add proxies
@@ -56,8 +60,9 @@ contract StrategiesRegistry is Ownable2Step, IStrategiesRegistry {
         if (strategyProxies[proxy]) revert Errors.AlreadyAdded();
 
         // add strategy proxy
+        strategyProxyIdToProxy[strategyProxyId] = proxy;
         strategyProxies[proxy] = true;
-        emit StrategyProxyAdded(msg.sender, proxy);
+        emit StrategyProxyAdded(msg.sender, strategyProxyId, proxy);
     }
 
     /// @inheritdoc IStrategiesRegistry

@@ -3,7 +3,7 @@
 pragma solidity ^0.8.26;
 
 import {IKeeperRewards} from '@stakewise-core/interfaces/IKeeperRewards.sol';
-import {IFlashLoanRecipient} from './IFlashLoanRecipient.sol';
+import {IOsTokenFlashLoanRecipient} from '@stakewise-core/interfaces/IOsTokenFlashLoanRecipient.sol';
 import {IStrategy} from '../../interfaces/IStrategy.sol';
 
 /**
@@ -11,20 +11,26 @@ import {IStrategy} from '../../interfaces/IStrategy.sol';
  * @author StakeWise
  * @notice Interface for LeverageStrategy contract
  */
-interface ILeverageStrategy is IFlashLoanRecipient, IStrategy {
+interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     error InvalidFlashloanAction();
+    error InvalidMaxSlippagePercent();
     error ExitQueueNotEntered();
     error InvalidExitQueuePercent();
     error InvalidExitQueueTicket();
+    error InvalidBalancerPoolId();
 
     /**
      * @notice Enum for flashloan actions
      * @param Deposit Deposit assets
      * @param ClaimExitedAssets Claim exited assets
+     * @param RescueVaultAssets Rescue vault assets
+     * @param RescueLendingAssets Rescue lending assets
      */
     enum FlashloanAction {
         Deposit,
-        ClaimExitedAssets
+        ClaimExitedAssets,
+        RescueVaultAssets,
+        RescueLendingAssets
     }
 
     /**
@@ -41,20 +47,23 @@ interface ILeverageStrategy is IFlashLoanRecipient, IStrategy {
 
     /**
      * @notice Event emitted when the strategy proxy is created
+     * @param strategyProxyId The id of the strategy proxy
      * @param vault The address of the vault
      * @param user The address of the user
      * @param proxy The address of the proxy created
      */
-    event StrategyProxyCreated(address indexed vault, address indexed user, address proxy);
+    event StrategyProxyCreated(
+        bytes32 indexed strategyProxyId, address indexed vault, address indexed user, address proxy
+    );
 
     /**
      * @notice Deposit assets to the strategy
      * @param vault The address of the vault
      * @param user The address of the user
      * @param osTokenShares Amount of osToken shares to deposit
-     * @param assets Amount of assets leveraged
+     * @param leverageOsTokenShares Amount of osToken shares leveraged
      */
-    event Deposited(address indexed vault, address indexed user, uint256 osTokenShares, uint256 assets);
+    event Deposited(address indexed vault, address indexed user, uint256 osTokenShares, uint256 leverageOsTokenShares);
 
     /**
      * @notice Enter the OsToken escrow exit queue
@@ -82,6 +91,24 @@ interface ILeverageStrategy is IFlashLoanRecipient, IStrategy {
      * @param strategy The address of the new strategy
      */
     event StrategyProxyUpgraded(address indexed vault, address indexed user, address strategy);
+
+    /**
+     * @notice Event emitted when the vault assets are rescued
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @param osTokenShares The amount of osToken shares rescued
+     * @param assets The amount of assets rescued
+     */
+    event VaultAssetsRescued(address indexed vault, address indexed user, uint256 osTokenShares, uint256 assets);
+
+    /**
+     * @notice Event emitted when the lending assets are rescued
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @param osTokenShares The amount of osToken shares rescued
+     * @param assets The amount of assets rescued
+     */
+    event LendingAssetsRescued(address indexed vault, address indexed user, uint256 osTokenShares, uint256 assets);
 
     /**
      * @notice Get the strategy proxy address
@@ -154,6 +181,21 @@ interface ILeverageStrategy is IFlashLoanRecipient, IStrategy {
      * @param exitPositionTicket The exit position ticket to claim the assets
      */
     function claimExitedAssets(address vault, address user, uint256 exitPositionTicket) external;
+
+    /**
+     * @notice Rescue vault assets. Can only be called by the position owner to rescue the vault assets in case of lending protocol liquidation.
+     * @param vault The address of the vault
+     * @param exitPositionTicket The exit position ticket to rescue the assets
+     */
+    function rescueVaultAssets(address vault, uint256 exitPositionTicket) external;
+
+    /**
+     * @notice Rescue lending assets. Can only be called by the position owner to rescue the lending assets in case of vault liquidation.
+     * @param vault The address of the vault
+     * @param assets The amount of assets to repay
+     * @param maxSlippagePercent The maximum slippage percent
+     */
+    function rescueLendingAssets(address vault, uint256 assets, uint256 maxSlippagePercent) external;
 
     /**
      * @notice Upgrade the strategy proxy. Can only be called by the proxy owner.

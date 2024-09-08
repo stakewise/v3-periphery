@@ -16,14 +16,14 @@ contract GnoAaveLeverageStrategy is AaveLeverageStrategy {
     /**
      * @dev Constructor
      * @param osToken The address of the OsToken contract
-     * @param assetToken The address of the asset token contract (e.g. GNO)
+     * @param assetToken The address of the asset token contract (e.g. WETH)
      * @param osTokenVaultController The address of the OsTokenVaultController contract
      * @param osTokenConfig The address of the OsTokenConfig contract
+     * @param osTokenFlashLoans The address of the OsTokenFlashLoans contract
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
      * @param strategiesRegistry The address of the StrategiesRegistry contract
      * @param strategyProxyImplementation The address of the StrategyProxy implementation
      * @param balancerVault The address of the BalancerVault contract
-     * @param balancerFeesCollector The address of the BalancerFeesCollector contract
      * @param aavePool The address of the Aave pool contract
      * @param aavePoolDataProvider The address of the Aave pool data provider contract
      * @param aaveOsToken The address of the Aave OsToken contract
@@ -34,11 +34,11 @@ contract GnoAaveLeverageStrategy is AaveLeverageStrategy {
         address assetToken,
         address osTokenVaultController,
         address osTokenConfig,
+        address osTokenFlashLoans,
         address osTokenVaultEscrow,
         address strategiesRegistry,
         address strategyProxyImplementation,
         address balancerVault,
-        address balancerFeesCollector,
         address aavePool,
         address aavePoolDataProvider,
         address aaveOsToken,
@@ -49,11 +49,11 @@ contract GnoAaveLeverageStrategy is AaveLeverageStrategy {
             assetToken,
             osTokenVaultController,
             osTokenConfig,
+            osTokenFlashLoans,
             osTokenVaultEscrow,
             strategiesRegistry,
             strategyProxyImplementation,
             balancerVault,
-            balancerFeesCollector,
             aavePool,
             aavePoolDataProvider,
             aaveOsToken,
@@ -67,14 +67,19 @@ contract GnoAaveLeverageStrategy is AaveLeverageStrategy {
     }
 
     /// @inheritdoc LeverageStrategy
-    function _mintOsTokenShares(address vault, address proxy, uint256 assets) internal override returns (uint256) {
+    function _mintOsTokenShares(
+        address vault,
+        address proxy,
+        uint256 depositAssets,
+        uint256 mintOsTokenShares
+    ) internal override returns (uint256) {
         IStrategyProxy(proxy).execute(
-            address(vault), abi.encodeWithSelector(IGnoVault(vault).deposit.selector, assets, proxy, address(0))
+            address(vault), abi.encodeWithSelector(IGnoVault(vault).deposit.selector, depositAssets, proxy, address(0))
         );
         uint256 balanceBefore = _osToken.balanceOf(proxy);
         IStrategyProxy(proxy).execute(
             address(vault),
-            abi.encodeWithSelector(IGnoVault(vault).mintOsToken.selector, proxy, type(uint256).max, address(0))
+            abi.encodeWithSelector(IGnoVault(vault).mintOsToken.selector, proxy, mintOsTokenShares, address(0))
         );
         return _osToken.balanceOf(proxy) - balanceBefore;
     }

@@ -16,10 +16,11 @@ import {IVaultState} from '@stakewise-core/interfaces/IVaultState.sol';
 import {IOsTokenVaultEscrow} from '@stakewise-core/interfaces/IOsTokenVaultEscrow.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
 import {IOsTokenConfig} from '@stakewise-core/interfaces/IOsTokenConfig.sol';
+import {IOsTokenFlashLoans} from '@stakewise-core/interfaces/IOsTokenFlashLoans.sol';
+import {IOsTokenFlashLoanRecipient} from '@stakewise-core/interfaces/IOsTokenFlashLoanRecipient.sol';
 import {IVaultVersion} from '@stakewise-core/interfaces/IVaultVersion.sol';
 import {IBalancerVault} from './interfaces/IBalancerVault.sol';
-import {IBalancerFeesCollector} from './interfaces/IBalancerFeesCollector.sol';
-import {ILeverageStrategy, IFlashLoanRecipient} from './interfaces/ILeverageStrategy.sol';
+import {ILeverageStrategy} from './interfaces/ILeverageStrategy.sol';
 import {IStrategiesRegistry} from '../interfaces/IStrategiesRegistry.sol';
 import {IStrategyProxy} from '../interfaces/IStrategyProxy.sol';
 import {IStrategy} from '../interfaces/IStrategy.sol';
@@ -36,6 +37,8 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     string internal constant _maxBorrowLtvPercentConfigName = 'maxBorrowLtvPercent';
     string internal constant _vaultForceExitLtvPercentConfigName = 'vaultForceExitLtvPercent';
     string internal constant _borrowForceExitLtvPercentConfigName = 'borrowForceExitLtvPercent';
+    string internal constant _rescueVaultConfigName = 'rescueVault';
+    string internal constant _balancerPoolIdConfigName = 'balancerPoolId';
     string internal constant _vaultUpgradeConfigName = 'upgradeV1';
 
     // Strategy
@@ -45,11 +48,11 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     // OsToken
     IOsTokenVaultController internal immutable _osTokenVaultController;
     IOsTokenConfig internal immutable _osTokenConfig;
+    IOsTokenFlashLoans private immutable _osTokenFlashLoans;
     IOsTokenVaultEscrow internal immutable _osTokenVaultEscrow;
 
     // Balancer
     IBalancerVault private immutable _balancerVault;
-    IBalancerFeesCollector private immutable _balancerFeesCollector;
 
     // Tokens
     IERC20 internal immutable _osToken;
@@ -63,40 +66,43 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
      * @param assetToken The address of the asset token contract (e.g. WETH)
      * @param osTokenVaultController The address of the OsTokenVaultController contract
      * @param osTokenConfig The address of the OsTokenConfig contract
+     * @param osTokenFlashLoans The address of the OsTokenFlashLoans contract
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
      * @param strategiesRegistry The address of the StrategiesRegistry contract
      * @param strategyProxyImplementation The address of the StrategyProxy implementation
      * @param balancerVault The address of the BalancerVault contract
-     * @param balancerFeesCollector The address of the BalancerFeesCollector contract
      */
     constructor(
         address osToken,
         address assetToken,
         address osTokenVaultController,
         address osTokenConfig,
+        address osTokenFlashLoans,
         address osTokenVaultEscrow,
         address strategiesRegistry,
         address strategyProxyImplementation,
-        address balancerVault,
-        address balancerFeesCollector
+        address balancerVault
     ) {
         _osToken = IERC20(osToken);
         _assetToken = IERC20(assetToken);
         _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
         _osTokenConfig = IOsTokenConfig(osTokenConfig);
+        _osTokenFlashLoans = IOsTokenFlashLoans(osTokenFlashLoans);
         _osTokenVaultEscrow = IOsTokenVaultEscrow(osTokenVaultEscrow);
         _strategiesRegistry = IStrategiesRegistry(strategiesRegistry);
-        _balancerVault = IBalancerVault(balancerVault);
-        _balancerFeesCollector = IBalancerFeesCollector(balancerFeesCollector);
         _strategyProxyImplementation = strategyProxyImplementation;
+        _balancerVault = IBalancerVault(balancerVault);
     }
 
     /// @inheritdoc ILeverageStrategy
     function getStrategyProxy(address vault, address user) public view returns (address proxy) {
-        // calculate the proxy address based on vault and user addresses
-        return Clones.predictDeterministicAddress(
-            _strategyProxyImplementation, keccak256(abi.encode(strategyId(), vault, user))
-        );
+        // check whether strategy proxy exists
+        bytes32 strategyProxyId = keccak256(abi.encode(strategyId(), vault, user));
+        proxy = _strategiesRegistry.strategyProxyIdToProxy(strategyProxyId);
+        if (proxy == address(0)) {
+            // calculate the proxy address
+            return Clones.predictDeterministicAddress(_strategyProxyImplementation, strategyProxyId);
+        }
     }
 
     /// @inheritdoc ILeverageStrategy
@@ -143,6 +149,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
             uint256 maxBorrowAssets =
                 Math.mulDiv(_osTokenVaultController.convertToAssets(suppliedOsTokenShares), _getBorrowLtv(), _wad);
             if (borrowedAssets >= maxBorrowAssets) {
+                // nothing to borrow
                 emit Deposited(vault, msg.sender, osTokenShares, 0);
                 return;
             }
@@ -153,26 +160,25 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
             }
             _borrowAssets(proxy, assetsToBorrow);
 
-            // mint new osToken shares
-            leverageOsTokenShares = _mintOsTokenShares(vault, proxy, assetsToBorrow);
+            // mint max possible osToken shares
+            leverageOsTokenShares = _mintOsTokenShares(vault, proxy, assetsToBorrow, type(uint256).max);
             if (leverageOsTokenShares == 0) {
+                // no osToken shares to leverage
                 emit Deposited(vault, msg.sender, osTokenShares, 0);
                 return;
             }
         }
 
-        // calculate flash loaned assets
-        uint256 flashLoanAssets = _getDepositFlashloanAssets(vault, leverageOsTokenShares);
+        // calculate flash loaned osToken shares
+        uint256 flashloanOsTokenShares = _getFlashloanOsTokenShares(vault, leverageOsTokenShares);
 
         // execute flashloan
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(_assetToken);
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = flashLoanAssets;
-        _balancerVault.flashLoan(address(this), tokens, amounts, abi.encode(FlashloanAction.Deposit, vault, proxy));
+        _osTokenFlashLoans.flashLoan(
+            address(this), flashloanOsTokenShares, abi.encode(FlashloanAction.Deposit, vault, proxy)
+        );
 
         // emit event
-        emit Deposited(vault, msg.sender, osTokenShares, flashLoanAssets);
+        emit Deposited(vault, msg.sender, osTokenShares, flashloanOsTokenShares);
     }
 
     /// @inheritdoc ILeverageStrategy
@@ -205,99 +211,119 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         if (!isStrategyProxyExiting[proxy]) revert ExitQueueNotEntered();
 
         // fetch exit position
-        (, uint256 exitedOsTokenShares) = _osTokenVaultEscrow.getPosition(vault, exitPositionTicket);
-        if (exitedOsTokenShares == 0) revert InvalidExitQueueTicket();
+        (address owner,, uint256 exitedOsTokenShares) = _osTokenVaultEscrow.getPosition(vault, exitPositionTicket);
+        if (owner != proxy) revert InvalidExitQueueTicket();
 
-        // fetch borrowed assets and minted osToken shares
-        (uint256 borrowedAssets, uint256 suppliedOsTokenShares) = _getBorrowState(proxy);
-        (, uint256 mintedOsTokenShares) = _getVaultState(vault, proxy);
-
-        // calculate assets to repay
-        uint256 repayAssets =
-            Math.mulDiv(borrowedAssets, exitedOsTokenShares, exitedOsTokenShares + mintedOsTokenShares);
-        if (repayAssets == 0) revert Errors.InvalidPosition();
-
-        unchecked {
-            // cannot underflow as repayAssets <= borrowedAssets
-            borrowedAssets -= repayAssets;
+        if (exitedOsTokenShares <= 1) {
+            // osToken vault escrow position was redeemed or liquidated
+            delete isStrategyProxyExiting[proxy];
+            emit ExitedAssetsClaimed(vault, user, 0, 0);
+            return;
         }
 
-        // calculate osToken shares to withdraw
-        uint256 newSuppliedOsTokenShares =
-            _osTokenVaultController.convertToShares(Math.mulDiv(borrowedAssets, _wad, _getBorrowLtv()));
-
-        // flashloan the borrowed assets to return
-        address[] memory tokens = new address[](1);
-        tokens[0] = address(_assetToken);
-        uint256[] memory amounts = new uint256[](1);
-        amounts[0] = repayAssets;
-        _balancerVault.flashLoan(
+        // flashloan the exited osToken shares
+        _osTokenFlashLoans.flashLoan(
             address(this),
-            tokens,
-            amounts,
-            abi.encode(
-                FlashloanAction.ClaimExitedAssets,
-                vault,
-                proxy,
-                exitPositionTicket,
-                suppliedOsTokenShares - newSuppliedOsTokenShares
-            )
+            exitedOsTokenShares,
+            abi.encode(FlashloanAction.ClaimExitedAssets, vault, proxy, exitPositionTicket)
         );
 
-        // withdraw left osToken shares to the user
-        uint256 userOsTokenShares = _osToken.balanceOf(proxy);
-        if (userOsTokenShares > 0) {
-            IStrategyProxy(proxy).execute(
-                address(_osToken), abi.encodeWithSelector(_osToken.transfer.selector, user, userOsTokenShares)
-            );
-        }
-
         // withdraw left assets to the user
-        uint256 userAssets = _assetToken.balanceOf(proxy);
-        if (userAssets > 0) {
-            _transferAssets(proxy, user, userAssets);
-        }
+        (uint256 claimedOsTokenShares, uint256 claimedAssets) = _claimProxyAssets(proxy, user);
 
         // update state
         delete isStrategyProxyExiting[proxy];
 
         // emit event
-        emit ExitedAssetsClaimed(vault, user, userOsTokenShares, userAssets);
+        emit ExitedAssetsClaimed(vault, user, claimedOsTokenShares, claimedAssets);
     }
 
-    /// @inheritdoc IFlashLoanRecipient
-    function receiveFlashLoan(
-        IERC20[] memory tokens,
-        uint256[] memory amounts,
-        uint256[] memory feeAmounts,
-        bytes memory userData
-    ) external {
+    /// @inheritdoc ILeverageStrategy
+    function rescueVaultAssets(address vault, uint256 exitPositionTicket) external {
+        address proxy = getStrategyProxy(vault, msg.sender);
+        if (!isStrategyProxyExiting[proxy]) revert ExitQueueNotEntered();
+
+        // fetch exit position
+        (address owner,, uint256 exitedOsTokenShares) = _osTokenVaultEscrow.getPosition(vault, exitPositionTicket);
+        if (owner != proxy) revert InvalidExitQueueTicket();
+
+        if (exitedOsTokenShares <= 1) {
+            // osToken vault escrow position was redeemed or liquidated
+            delete isStrategyProxyExiting[proxy];
+            emit VaultAssetsRescued(vault, msg.sender, 0, 0);
+            return;
+        }
+
+        // flashloan the exited osToken shares
+        _osTokenFlashLoans.flashLoan(
+            address(this),
+            exitedOsTokenShares,
+            abi.encode(FlashloanAction.RescueVaultAssets, vault, proxy, exitPositionTicket)
+        );
+
+        // update state
+        delete isStrategyProxyExiting[proxy];
+
+        // withdraw left assets to the user
+        (uint256 claimedOsTokenShares, uint256 claimedAssets) = _claimProxyAssets(proxy, msg.sender);
+
+        // emit event
+        emit VaultAssetsRescued(vault, msg.sender, claimedOsTokenShares, claimedAssets);
+    }
+
+    /// @inheritdoc ILeverageStrategy
+    function rescueLendingAssets(address vault, uint256 assets, uint256 maxSlippagePercent) external {
+        if (maxSlippagePercent >= _wad) revert InvalidMaxSlippagePercent();
+
+        // fetch borrowed assets
+        address proxy = getStrategyProxy(vault, msg.sender);
+        (uint256 borrowedAssets,) = _getBorrowState(proxy);
+        if (assets == 0 || assets > borrowedAssets) revert Errors.InvalidAssets();
+
+        // calculate osToken shares to flashloan
+        uint256 osTokenShares = _osTokenVaultController.convertToShares(assets);
+        // apply max slippage percent
+        osTokenShares += Math.mulDiv(osTokenShares, maxSlippagePercent, _wad);
+
+        // flashloan the osToken shares
+        _osTokenFlashLoans.flashLoan(
+            address(this), osTokenShares, abi.encode(FlashloanAction.RescueLendingAssets, proxy, assets)
+        );
+
+        // withdraw left assets to the user
+        (uint256 claimedOsTokenShares, uint256 claimedAssets) = _claimProxyAssets(proxy, msg.sender);
+
+        // emit event
+        emit LendingAssetsRescued(vault, msg.sender, claimedOsTokenShares, claimedAssets);
+    }
+
+    /// @inheritdoc IOsTokenFlashLoanRecipient
+    function receiveFlashLoan(uint256 osTokenShares, bytes memory userData) external {
         // validate sender
-        if (msg.sender != address(_balancerVault)) {
+        if (msg.sender != address(_osTokenFlashLoans)) {
             revert Errors.AccessDenied();
         }
 
-        // validate call
-        if (tokens.length != 1 || amounts.length != 1 || feeAmounts.length != 1 || tokens[0] != _assetToken) {
-            revert Errors.InvalidReceivedAssets();
-        }
-
         // decode userData action
-        uint256 flashloanAssets = amounts[0];
-        uint256 flashloanFeeAssets = feeAmounts[0];
         (FlashloanAction flashloanType) = abi.decode(userData, (FlashloanAction));
-
         if (flashloanType == FlashloanAction.Deposit) {
             // process deposit flashloan
             (, address vault, address proxy) = abi.decode(userData, (FlashloanAction, address, address));
-            _processDepositFlashloan(vault, proxy, flashloanAssets, flashloanFeeAssets);
+            _processDepositFlashloan(vault, proxy, osTokenShares);
         } else if (flashloanType == FlashloanAction.ClaimExitedAssets) {
             // process claim exited assets flashloan
-            (, address vault, address proxy, uint256 exitPositionTicket, uint256 exitedOsTokenShares) =
-                abi.decode(userData, (FlashloanAction, address, address, uint256, uint256));
-            _processClaimFlashloan(
-                vault, proxy, flashloanAssets, flashloanFeeAssets, exitPositionTicket, exitedOsTokenShares
-            );
+            (, address vault, address proxy, uint256 exitPositionTicket) =
+                abi.decode(userData, (FlashloanAction, address, address, uint256));
+            _processClaimFlashloan(vault, proxy, exitPositionTicket, osTokenShares);
+        } else if (flashloanType == FlashloanAction.RescueVaultAssets) {
+            // process vault assets rescue flashloan
+            (, address vault, address proxy, uint256 exitPositionTicket) =
+                abi.decode(userData, (FlashloanAction, address, address, uint256));
+            _processVaultAssetsRescueFlashloan(vault, proxy, exitPositionTicket, osTokenShares);
+        } else if (flashloanType == FlashloanAction.RescueLendingAssets) {
+            // process lending assets rescue flashloan
+            (, address proxy, uint256 assets) = abi.decode(userData, (FlashloanAction, address, uint256));
+            _processLendingAssetsRescueFlashloan(proxy, assets, osTokenShares);
         } else {
             revert InvalidFlashloanAction();
         }
@@ -310,13 +336,13 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         if (isStrategyProxyExiting[proxy]) revert Errors.ExitRequestNotProcessed();
         if (!_strategiesRegistry.strategyProxies(proxy)) revert Errors.AccessDenied();
 
-
         // check whether there is a new version for the current strategy
         bytes memory vaultUpgradeConfig = _strategiesRegistry.getStrategyConfig(strategyId(), _vaultUpgradeConfigName);
         if (vaultUpgradeConfig.length == 0) {
             revert Errors.UpgradeFailed();
         }
 
+        // decode and check new strategy address
         address newStrategy = abi.decode(vaultUpgradeConfig, (address));
         if (newStrategy == address(0) || newStrategy == address(this)) {
             revert Errors.ValueNotChanged();
@@ -366,63 +392,49 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     }
 
     /**
-     * @dev Calculates the amount of assets to flashloan from the Balancer for the deposit
+     * @dev Calculates the amount of osToken shares to flashloan
      * @param vault The address of the vault
      * @param osTokenShares The amount of osToken shares at hand
-     * @return The amount of assets to flashloan
+     * @return The amount of osToken shares to flashloan
      */
-    function _getDepositFlashloanAssets(address vault, uint256 osTokenShares) private view returns (uint256) {
+    function _getFlashloanOsTokenShares(address vault, uint256 osTokenShares) private view returns (uint256) {
         // fetch deposit and borrow LTVs
         uint256 vaultLtv = _getVaultLtv(vault);
         uint256 borrowLtv = _getBorrowLtv();
 
-        // fetch Balancer flashloan fee percent
-        uint256 flashLoanFeePercent = _balancerFeesCollector.getFlashLoanFeePercentage();
-
-        // reduce borrow LTV to account for flash loan fee
-        if (flashLoanFeePercent > 0) {
-            borrowLtv -= flashLoanFeePercent;
-        }
-
+        // calculate the amount of osToken shares that can be leveraged
         uint256 totalLtv = Math.mulDiv(vaultLtv, borrowLtv, _wad);
-
-        // convert osToken shares to assets
-        uint256 osTokenAssets = _osTokenVaultController.convertToAssets(osTokenShares);
-
-        // calculate the max amount that can be borrowed
-        return Math.mulDiv(osTokenAssets, borrowLtv, _wad - totalLtv);
+        return Math.mulDiv(osTokenShares, _wad, _wad - totalLtv) - osTokenShares;
     }
 
     /**
      * @dev Processes the deposit flashloan
      * @param vault The address of the vault
      * @param proxy The address of the strategy proxy
-     * @param flashloanAssets The amount of flashloan assets
-     * @param flashloanFeeAssets The amount of flashloan fee assets
+     * @param flashloanOsTokenShares The amount of flashloan osToken shares
      */
-    function _processDepositFlashloan(
-        address vault,
-        address proxy,
-        uint256 flashloanAssets,
-        uint256 flashloanFeeAssets
-    ) private {
+    function _processDepositFlashloan(address vault, address proxy, uint256 flashloanOsTokenShares) private {
         // transfer flashloan to proxy
-        SafeERC20.safeTransfer(_assetToken, proxy, flashloanAssets);
-
-        // mint max osToken shares
-        _mintOsTokenShares(vault, proxy, _assetToken.balanceOf(proxy));
+        SafeERC20.safeTransfer(_osToken, proxy, flashloanOsTokenShares);
 
         // supply all osToken shares to the lending protocol
         _supplyOsTokenShares(proxy, _osToken.balanceOf(proxy));
 
-        // borrow assets from the lending protocol
-        flashloanAssets += flashloanFeeAssets;
-        _borrowAssets(proxy, flashloanAssets);
+        // calculate assets to borrow
+        uint256 borrowAssets =
+            Math.mulDiv(_osTokenVaultController.convertToAssets(flashloanOsTokenShares), _wad, _getVaultLtv(vault));
+        borrowAssets += 2; // add 2 wei to avoid rounding errors
 
-        // transfer flashloan assets to the Balancer vault
+        // borrow assets from the lending protocol
+        _borrowAssets(proxy, borrowAssets);
+
+        // mint osToken shares
+        _mintOsTokenShares(vault, proxy, borrowAssets, flashloanOsTokenShares);
+
+        // transfer flashloan osToken shares to the osTokenFlashLoans contract
         IStrategyProxy(proxy).execute(
-            address(_assetToken),
-            abi.encodeWithSelector(_assetToken.transfer.selector, address(_balancerVault), flashloanAssets)
+            address(_osToken),
+            abi.encodeWithSelector(_osToken.transfer.selector, address(_osTokenFlashLoans), flashloanOsTokenShares)
         );
     }
 
@@ -430,37 +442,158 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
      * @dev Processes the exited assets claim flashloan
      * @param vault The address of the vault
      * @param proxy The address of the strategy proxy
-     * @param flashloanAssets The amount of flashloan assets
-     * @param flashloanFeeAssets The amount of flashloan fee assets
      * @param exitPositionTicket The exit position ticket
-     * @param exitedOsTokenShares The amount of exited osToken shares
+     * @param flashloanOsTokenShares The amount of flashloan osToken shares
      */
     function _processClaimFlashloan(
         address vault,
         address proxy,
-        uint256 flashloanAssets,
-        uint256 flashloanFeeAssets,
         uint256 exitPositionTicket,
-        uint256 exitedOsTokenShares
+        uint256 flashloanOsTokenShares
     ) private {
         // transfer flashloan to proxy
-        SafeERC20.safeTransfer(_assetToken, proxy, flashloanAssets);
-
-        // repay borrowed assets
-        _repayAssets(proxy, flashloanAssets);
-
-        // withdraw osToken shares
-        _withdrawOsTokenShares(proxy, exitedOsTokenShares);
+        SafeERC20.safeTransfer(_osToken, proxy, flashloanOsTokenShares);
 
         // claim exited assets
-        _claimOsTokenVaultEscrowAssets(vault, proxy, exitPositionTicket);
+        uint256 claimedAssets = _claimOsTokenVaultEscrowAssets(vault, proxy, exitPositionTicket, flashloanOsTokenShares);
 
-        // transfer flashloan assets and fee to the Balancer vault
+        // repay borrowed assets
+        (uint256 borrowedAssets, uint256 suppliedOsTokenShares) = _getBorrowState(proxy);
+        uint256 repayAssets = Math.min(borrowedAssets, claimedAssets);
+        _repayAssets(proxy, repayAssets);
+
+        unchecked {
+            // cannot underflow because repayAssets <= borrowedAssets
+            borrowedAssets -= repayAssets;
+        }
+
+        // deduct reserved osToken shares from the supplied osToken shares
+        if (borrowedAssets != 0) {
+            suppliedOsTokenShares -=
+                _osTokenVaultController.convertToShares(Math.mulDiv(borrowedAssets, _wad, _getBorrowLtv()));
+        }
+
+        // withdraw osToken shares
+        _withdrawOsTokenShares(proxy, suppliedOsTokenShares);
+
+        // transfer flashloan osToken shares to the osTokenFlashLoans contract
         IStrategyProxy(proxy).execute(
-            address(_assetToken),
+            address(_osToken),
+            abi.encodeWithSelector(_osToken.transfer.selector, address(_osTokenFlashLoans), flashloanOsTokenShares)
+        );
+    }
+
+    /**
+     * @dev Processes the vault assets rescue flashloan
+     * @param vault The address of the vault
+     * @param proxy The address of the strategy proxy
+     * @param exitPositionTicket The exit position ticket
+     * @param flashloanOsTokenShares The amount of flashloan osToken shares
+     */
+    function _processVaultAssetsRescueFlashloan(
+        address vault,
+        address proxy,
+        uint256 exitPositionTicket,
+        uint256 flashloanOsTokenShares
+    ) private {
+        // transfer flashloan to proxy
+        SafeERC20.safeTransfer(_osToken, proxy, flashloanOsTokenShares);
+
+        // claim exited assets
+        uint256 claimedAssets = _claimOsTokenVaultEscrowAssets(vault, proxy, exitPositionTicket, flashloanOsTokenShares);
+
+        // fetch vault with higher LTV than user's vault and proxy addresses
+        bytes memory rescueVaultConfig = _strategiesRegistry.getStrategyConfig(strategyId(), _rescueVaultConfigName);
+        if (rescueVaultConfig.length == 0) revert Errors.InvalidVault();
+        address rescueVault = abi.decode(rescueVaultConfig, (address));
+        (address rescueProxy,) = _getOrCreateStrategyProxy(rescueVault, address(1));
+
+        // mint osToken shares to rescue proxy
+        IStrategyProxy(proxy).execute(
+            address(_assetToken), abi.encodeWithSelector(_assetToken.transfer.selector, rescueProxy, claimedAssets)
+        );
+        uint256 totalOsTokenShares = _mintOsTokenShares(rescueVault, rescueProxy, claimedAssets, type(uint256).max);
+
+        // transfer flashloan osToken shares to the osTokenFlashLoans contract
+        IStrategyProxy(rescueProxy).execute(
+            address(_osToken),
+            abi.encodeWithSelector(_osToken.transfer.selector, address(_osTokenFlashLoans), flashloanOsTokenShares)
+        );
+
+        // transfer left osToken shares to user's proxy
+        IStrategyProxy(rescueProxy).execute(
+            address(_osToken),
+            abi.encodeWithSelector(_osToken.transfer.selector, proxy, totalOsTokenShares - flashloanOsTokenShares)
+        );
+    }
+
+    /**
+     * @dev Processes the lending assets rescue flashloan
+     * @param proxy The address of the strategy proxy
+     * @param repayAssets The amount of borrowed assets to repay
+     * @param flashloanOsTokenShares The amount of flashloan osToken shares
+     */
+    function _processLendingAssetsRescueFlashloan(
+        address proxy,
+        uint256 repayAssets,
+        uint256 flashloanOsTokenShares
+    ) private {
+        // transfer flashloan to proxy
+        SafeERC20.safeTransfer(_osToken, proxy, flashloanOsTokenShares);
+
+        // fetch Balancer pool ID to execute swap
+        bytes memory balancerPoolIdConfig =
+            _strategiesRegistry.getStrategyConfig(strategyId(), _balancerPoolIdConfigName);
+        if (balancerPoolIdConfig.length == 0) revert InvalidBalancerPoolId();
+        bytes32 balancerPoolId = abi.decode(balancerPoolIdConfig, (bytes32));
+
+        // define balancer swap
+        IBalancerVault.SingleSwap memory singleSwap = IBalancerVault.SingleSwap({
+            poolId: balancerPoolId,
+            kind: IBalancerVault.SwapKind.GIVEN_OUT,
+            assetIn: address(_osToken),
+            assetOut: address(_assetToken),
+            amount: repayAssets,
+            userData: ''
+        });
+
+        // define balancer funds
+        IBalancerVault.FundManagement memory funds = IBalancerVault.FundManagement({
+            sender: proxy,
+            fromInternalBalance: false,
+            recipient: payable(proxy),
+            toInternalBalance: false
+        });
+
+        // swap osToken shares to assets
+        IStrategyProxy(proxy).execute(
+            address(_osToken),
+            abi.encodeWithSelector(_osToken.approve.selector, address(_balancerVault), flashloanOsTokenShares)
+        );
+        IStrategyProxy(proxy).execute(
+            address(_balancerVault),
             abi.encodeWithSelector(
-                _assetToken.transfer.selector, address(_balancerVault), flashloanAssets + flashloanFeeAssets
+                _balancerVault.swap.selector, singleSwap, funds, flashloanOsTokenShares, block.timestamp
             )
+        );
+
+        // repay borrowed assets
+        _repayAssets(proxy, repayAssets);
+
+        // calculate osToken shares to withdraw
+        (uint256 borrowedAssets, uint256 suppliedOsTokenShares) = _getBorrowState(proxy);
+        if (borrowedAssets != 0) {
+            suppliedOsTokenShares -=
+                _osTokenVaultController.convertToShares(Math.mulDiv(borrowedAssets, _wad, _getBorrowLtv()));
+        }
+
+        // withdraw osToken shares
+        _withdrawOsTokenShares(proxy, suppliedOsTokenShares);
+
+        // transfer flashloan osToken shares to the osTokenFlashLoans contract
+        IStrategyProxy(proxy).execute(
+            address(_osToken),
+            abi.encodeWithSelector(_osToken.transfer.selector, address(_osTokenFlashLoans), flashloanOsTokenShares)
         );
     }
 
@@ -530,12 +663,12 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         }
 
         // create proxy
-        bytes32 salt = keccak256(abi.encode(strategyId(), vault, user));
-        proxy = Clones.cloneDeterministic(_strategyProxyImplementation, salt);
+        bytes32 strategyProxyId = keccak256(abi.encode(strategyId(), vault, user));
+        proxy = Clones.cloneDeterministic(_strategyProxyImplementation, strategyProxyId);
         isCreated = true;
         IStrategyProxy(proxy).initialize(address(this));
-        _strategiesRegistry.addStrategyProxy(proxy);
-        emit StrategyProxyCreated(vault, user, proxy);
+        _strategiesRegistry.addStrategyProxy(strategyProxyId, proxy);
+        emit StrategyProxyCreated(strategyProxyId, vault, user, proxy);
     }
 
     /**
@@ -543,19 +676,46 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
      * @param vault The address of the vault
      * @param proxy The address of the strategy proxy
      * @param positionTicket The exit position ticket
+     * @param osTokenShares The amount of osToken shares to claim
      * @return claimedAssets The amount of claimed assets
      */
     function _claimOsTokenVaultEscrowAssets(
         address vault,
         address proxy,
-        uint256 positionTicket
+        uint256 positionTicket,
+        uint256 osTokenShares
     ) internal virtual returns (uint256 claimedAssets) {
-        (, uint256 osTokenShares) = _osTokenVaultEscrow.getPosition(vault, positionTicket);
         bytes memory response = IStrategyProxy(proxy).execute(
             address(_osTokenVaultEscrow),
             abi.encodeWithSelector(IOsTokenVaultEscrow.claimExitedAssets.selector, vault, positionTicket, osTokenShares)
         );
         return abi.decode(response, (uint256));
+    }
+
+    /**
+     * @dev Claims assets and osToken shares from the proxy to the user
+     * @param proxy The address of the strategy proxy
+     * @param user The address of the user that receives the assets
+     * @return claimedOsTokenShares The amount of claimed osToken shares
+     * @return claimedAssets The amount of claimed assets
+     */
+    function _claimProxyAssets(
+        address proxy,
+        address user
+    ) private returns (uint256 claimedOsTokenShares, uint256 claimedAssets) {
+        // withdraw left osToken shares to the user
+        claimedOsTokenShares = _osToken.balanceOf(proxy);
+        if (claimedOsTokenShares > 0) {
+            IStrategyProxy(proxy).execute(
+                address(_osToken), abi.encodeWithSelector(_osToken.transfer.selector, user, claimedOsTokenShares)
+            );
+        }
+
+        // withdraw left assets to the user
+        claimedAssets = _assetToken.balanceOf(proxy);
+        if (claimedAssets > 0) {
+            _transferAssets(proxy, user, claimedAssets);
+        }
     }
 
     /**
@@ -606,23 +766,22 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
      * @dev Deposits assets to the vault and mints osToken shares
      * @param vault The address of the vault
      * @param proxy The address of the strategy proxy
-     * @param assets The amount of assets to deposit
+     * @param depositAssets The amount of assets to deposit
+     * @param mintOsTokenShares The amount of osToken shares to mint
      * @return The amount of osToken shares minted
      */
-    function _mintOsTokenShares(address vault, address proxy, uint256 assets) internal virtual returns (uint256);
+    function _mintOsTokenShares(
+        address vault,
+        address proxy,
+        uint256 depositAssets,
+        uint256 mintOsTokenShares
+    ) internal virtual returns (uint256);
 
     /**
      * @dev Returns the borrow LTV.
      * @return The borrow LTV
      */
     function _getBorrowLtv() internal view virtual returns (uint256);
-
-    /**
-     * @dev Returns the maximum amount of assets that can be borrowed
-     * @param proxy The address of the strategy proxy
-     * @return amount The amount of assets that can be borrowed
-     */
-    function _getMaxBorrowAssets(address proxy) internal view virtual returns (uint256 amount);
 
     /**
      * @dev Returns the borrow position state

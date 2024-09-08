@@ -21,11 +21,11 @@ contract EthAaveLeverageStrategy is AaveLeverageStrategy {
      * @param assetToken The address of the asset token contract (e.g. WETH)
      * @param osTokenVaultController The address of the OsTokenVaultController contract
      * @param osTokenConfig The address of the OsTokenConfig contract
+     * @param osTokenFlashLoans The address of the OsTokenFlashLoans contract
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
      * @param strategiesRegistry The address of the StrategiesRegistry contract
      * @param strategyProxyImplementation The address of the StrategyProxy implementation
      * @param balancerVault The address of the BalancerVault contract
-     * @param balancerFeesCollector The address of the BalancerFeesCollector contract
      * @param aavePool The address of the Aave pool contract
      * @param aavePoolDataProvider The address of the Aave pool data provider contract
      * @param aaveOsToken The address of the Aave OsToken contract
@@ -36,11 +36,11 @@ contract EthAaveLeverageStrategy is AaveLeverageStrategy {
         address assetToken,
         address osTokenVaultController,
         address osTokenConfig,
+        address osTokenFlashLoans,
         address osTokenVaultEscrow,
         address strategiesRegistry,
         address strategyProxyImplementation,
         address balancerVault,
-        address balancerFeesCollector,
         address aavePool,
         address aavePoolDataProvider,
         address aaveOsToken,
@@ -51,11 +51,11 @@ contract EthAaveLeverageStrategy is AaveLeverageStrategy {
             assetToken,
             osTokenVaultController,
             osTokenConfig,
+            osTokenFlashLoans,
             osTokenVaultEscrow,
             strategiesRegistry,
             strategyProxyImplementation,
             balancerVault,
-            balancerFeesCollector,
             aavePool,
             aavePoolDataProvider,
             aaveOsToken,
@@ -72,9 +72,10 @@ contract EthAaveLeverageStrategy is AaveLeverageStrategy {
     function _claimOsTokenVaultEscrowAssets(
         address vault,
         address proxy,
-        uint256 positionTicket
+        uint256 positionTicket,
+        uint256 osTokenShares
     ) internal override returns (uint256 claimedAssets) {
-        claimedAssets = super._claimOsTokenVaultEscrowAssets(vault, proxy, positionTicket);
+        claimedAssets = super._claimOsTokenVaultEscrowAssets(vault, proxy, positionTicket, osTokenShares);
         if (claimedAssets == 0) return 0;
 
         // convert ETH to WETH
@@ -86,17 +87,23 @@ contract EthAaveLeverageStrategy is AaveLeverageStrategy {
     }
 
     /// @inheritdoc LeverageStrategy
-    function _mintOsTokenShares(address vault, address proxy, uint256 assets) internal override returns (uint256) {
+    function _mintOsTokenShares(
+        address vault,
+        address proxy,
+        uint256 depositAssets,
+        uint256 mintOsTokenShares
+    ) internal override returns (uint256) {
         IStrategyProxy(proxy).execute(
-            address(_assetToken), abi.encodeWithSelector(WETH9(payable(address(_assetToken))).withdraw.selector, assets)
+            address(_assetToken),
+            abi.encodeWithSelector(WETH9(payable(address(_assetToken))).withdraw.selector, depositAssets)
         );
         uint256 balanceBefore = _osToken.balanceOf(proxy);
         IStrategyProxy(proxy).executeWithValue(
             vault,
             abi.encodeWithSelector(
-                IEthVault(vault).depositAndMintOsToken.selector, proxy, type(uint256).max, address(0)
+                IEthVault(vault).depositAndMintOsToken.selector, proxy, mintOsTokenShares, address(0)
             ),
-            assets
+            depositAssets
         );
         return _osToken.balanceOf(proxy) - balanceBefore;
     }
