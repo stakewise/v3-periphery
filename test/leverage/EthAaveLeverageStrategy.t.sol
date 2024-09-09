@@ -562,60 +562,11 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         snapEnd();
     }
 
-    function test_processExitedAssets_NoPosition() public {
-        ILeverageStrategy.ExitPosition memory position =
+    function test_claimExitedAssets_NoExitPosition() public {
+        ILeverageStrategy.ExitPosition memory exitPosition =
             ILeverageStrategy.ExitPosition({positionTicket: 0, timestamp: 0, exitQueueIndex: 0});
         vm.expectRevert(ILeverageStrategy.ExitQueueNotEntered.selector);
-        strategy.processExitedAssets(vault, address(this), position);
-    }
-
-    function test_processExitedAssets() public {
-        // deposit
-        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
-        IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
-
-        // earn some rewards
-        vm.warp(vm.getBlockTimestamp() + 30 days);
-        uint256 avgRewardPerSecond = IOsTokenVaultController(osTokenVaultController).avgRewardPerSecond();
-        int256 reward = SafeCast.toInt256(IEthVault(vault).totalAssets() * 0.03 ether / 1 ether / 12);
-        IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, reward, 0, avgRewardPerSecond);
-        strategy.updateVaultState(vault, harvestParams);
-
-        // enter exit queue for full position
-        uint256 positionTicket = strategy.enterExitQueue(vault, 1 ether);
-        uint256 timestamp = vm.getBlockTimestamp();
-
-        // position went through the exit queue
-        vm.warp(vm.getBlockTimestamp() + 3 days);
-        harvestParams = _setVaultRewards(vault, reward, 0, avgRewardPerSecond);
-        strategy.updateVaultState(vault, harvestParams);
-
-        // process exited assets
-        int256 exitQueueIndex = IEthVault(vault).getExitQueueIndex(positionTicket);
-        ILeverageStrategy.ExitPosition memory exitPosition = ILeverageStrategy.ExitPosition({
-            positionTicket: positionTicket,
-            timestamp: timestamp,
-            exitQueueIndex: SafeCast.toUint256(exitQueueIndex)
-        });
-
-        (, uint256 exitedAssets, uint256 exitOsTokenShares) =
-            IOsTokenVaultEscrow(osTokenVaultEscrow).getPosition(vault, positionTicket);
-        vm.assertEq(exitedAssets, 0);
-        vm.assertGt(exitOsTokenShares, 0);
-
-        snapStart('EthAaveLeverageStrategyTest_test_processExitedAssets');
-        strategy.processExitedAssets(vault, address(this), exitPosition);
-        snapEnd();
-
-        (, exitedAssets, exitOsTokenShares) = IOsTokenVaultEscrow(osTokenVaultEscrow).getPosition(vault, positionTicket);
-        vm.assertGt(exitedAssets, 0);
-        vm.assertGt(exitOsTokenShares, 0);
-    }
-
-    function test_claimExitedAssets_NoExitPosition() public {
-        vm.expectRevert(ILeverageStrategy.ExitQueueNotEntered.selector);
-        strategy.claimExitedAssets(vault, address(this), 0);
+        strategy.claimExitedAssets(vault, address(this), exitPosition);
     }
 
     function test_claimExitedAssets_InvalidExitQueueTicket() public {
@@ -626,7 +577,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         strategy.enterExitQueue(vault, 1 ether);
 
         vm.expectRevert(ILeverageStrategy.InvalidExitQueueTicket.selector);
-        strategy.claimExitedAssets(vault, address(this), 100);
+                ILeverageStrategy.ExitPosition memory exitPosition =
+            ILeverageStrategy.ExitPosition({positionTicket: 100, timestamp: 0, exitQueueIndex: 0});
+        strategy.claimExitedAssets(vault, address(this), exitPosition);
     }
 
     function test_claimExitedAssets() public {
@@ -673,13 +626,12 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
             timestamp: timestamp,
             exitQueueIndex: SafeCast.toUint256(IEthVault(vault).getExitQueueIndex(positionTicket))
         });
-        strategy.processExitedAssets(vault, address(this), exitPosition);
 
         uint256 assetsBefore = address(this).balance;
 
         // claim exited assets
         snapStart('EthAaveLeverageStrategyTest_test_claimExitedAssets1');
-        strategy.claimExitedAssets(vault, address(this), positionTicket);
+        strategy.claimExitedAssets(vault, address(this), exitPosition);
         snapEnd();
 
         // enter exit queue for 2/4 position
@@ -697,15 +649,14 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
             timestamp: timestamp,
             exitQueueIndex: SafeCast.toUint256(IEthVault(vault).getExitQueueIndex(positionTicket))
         });
-        strategy.processExitedAssets(vault, address(this), exitPosition);
 
         snapStart('EthAaveLeverageStrategyTest_test_claimExitedAssets2');
-        strategy.claimExitedAssets(vault, address(this), positionTicket);
+        strategy.claimExitedAssets(vault, address(this), exitPosition);
         snapEnd();
 
         // fails calling again
         vm.expectRevert(ILeverageStrategy.ExitQueueNotEntered.selector);
-        strategy.claimExitedAssets(vault, address(this), positionTicket);
+        strategy.claimExitedAssets(vault, address(this), exitPosition);
 
         // enter exit queue for full position
         positionTicket = strategy.enterExitQueue(vault, 1 ether);
@@ -723,11 +674,10 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
             timestamp: timestamp,
             exitQueueIndex: SafeCast.toUint256(IEthVault(vault).getExitQueueIndex(positionTicket))
         });
-        strategy.processExitedAssets(vault, address(this), exitPosition);
 
         // claim exited assets
         snapStart('EthAaveLeverageStrategyTest_test_claimExitedAssets3');
-        strategy.claimExitedAssets(vault, address(this), positionTicket);
+        strategy.claimExitedAssets(vault, address(this), exitPosition);
         snapEnd();
         State memory state = _getState();
         vm.assertEq(state.borrowedAssets, 0, 'borrowedAssets != 0');
@@ -748,7 +698,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
 
     function test_rescueVaultAssets_ExitQueueNotEntered() public {
         vm.expectRevert(ILeverageStrategy.ExitQueueNotEntered.selector);
-        strategy.rescueVaultAssets(vault, 0);
+        ILeverageStrategy.ExitPosition memory exitPosition =
+            ILeverageStrategy.ExitPosition({positionTicket: 0, timestamp: 0, exitQueueIndex: 0});
+        strategy.rescueVaultAssets(vault, exitPosition);
     }
 
     function test_rescueVaultAssets_InvalidExitQueueTicket() public {
@@ -757,9 +709,10 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         IERC20(osToken).approve(strategyProxy, osTokenShares);
         strategy.deposit(vault, osTokenShares);
         strategy.enterExitQueue(vault, 1 ether);
-
+        ILeverageStrategy.ExitPosition memory exitPosition =
+            ILeverageStrategy.ExitPosition({positionTicket: 100, timestamp: 0, exitQueueIndex: 0});
         vm.expectRevert(ILeverageStrategy.InvalidExitQueueTicket.selector);
-        strategy.rescueVaultAssets(vault, 100);
+        strategy.rescueVaultAssets(vault, exitPosition);
     }
 
     function test_rescueVaultAssets_ExitPositionNotProcessed() public {
@@ -770,7 +723,12 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         uint256 positionTicket = strategy.enterExitQueue(vault, 1 ether);
 
         vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
-        strategy.rescueVaultAssets(vault, positionTicket);
+        ILeverageStrategy.ExitPosition memory exitPosition = ILeverageStrategy.ExitPosition({
+            positionTicket: positionTicket,
+            timestamp: vm.getBlockTimestamp(),
+            exitQueueIndex: 0
+        });
+        strategy.rescueVaultAssets(vault, exitPosition);
     }
 
     function test_rescueVaultAssets_NoRescueVaultConfig() public {
@@ -793,10 +751,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
             timestamp: timestamp,
             exitQueueIndex: SafeCast.toUint256(IEthVault(vault).getExitQueueIndex(positionTicket))
         });
-        strategy.processExitedAssets(vault, address(this), exitPosition);
 
         vm.expectRevert(Errors.InvalidVault.selector);
-        strategy.rescueVaultAssets(vault, positionTicket);
+        strategy.rescueVaultAssets(vault, exitPosition);
     }
 
     function test_rescueVaultAssets() public {
@@ -819,7 +776,6 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
             timestamp: timestamp,
             exitQueueIndex: SafeCast.toUint256(IEthVault(vault).getExitQueueIndex(positionTicket))
         });
-        strategy.processExitedAssets(vault, address(this), exitPosition);
 
         // setup rescue vault
         IEthVault.EthVaultInitParams memory params =
@@ -844,7 +800,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.VaultAssetsRescued(vault, address(this), 0, 0);
         snapStart('EthAaveLeverageStrategyTest_test_rescueVaultAssets');
-        strategy.rescueVaultAssets(vault, positionTicket);
+        strategy.rescueVaultAssets(vault, exitPosition);
         snapEnd();
 
         uint256 assetsAfter = address(this).balance;

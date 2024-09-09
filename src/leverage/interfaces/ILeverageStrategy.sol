@@ -167,27 +167,19 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     function forceEnterExitQueue(address vault, address user) external returns (uint256 positionTicket);
 
     /**
-     * @notice Processes exited assets. Can be called by anyone.
+     * @notice Claim exited assets. Can be called by anyone.
      * @param vault The address of the vault
      * @param user The address of the user
      * @param exitPosition The exit position to process
      */
-    function processExitedAssets(address vault, address user, ExitPosition calldata exitPosition) external;
-
-    /**
-     * @notice Claim exited assets. Can be called by anyone.
-     * @param vault The address of the vault
-     * @param user The address of the user
-     * @param exitPositionTicket The exit position ticket to claim the assets
-     */
-    function claimExitedAssets(address vault, address user, uint256 exitPositionTicket) external;
+    function claimExitedAssets(address vault, address user, ExitPosition calldata exitPosition) external;
 
     /**
      * @notice Rescue vault assets. Can only be called by the position owner to rescue the vault assets in case of lending protocol liquidation.
      * @param vault The address of the vault
-     * @param exitPositionTicket The exit position ticket to rescue the assets
+     * @param exitPosition The exit position to process
      */
-    function rescueVaultAssets(address vault, uint256 exitPositionTicket) external;
+    function rescueVaultAssets(address vault, ExitPosition calldata exitPosition) external;
 
     /**
      * @notice Rescue lending assets. Can only be called by the position owner to rescue the lending assets in case of vault liquidation.

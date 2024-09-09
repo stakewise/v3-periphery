@@ -192,26 +192,14 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         return _enterExitQueue(vault, user, _wad);
     }
 
-    /// @inheritdoc ILeverageStrategy
-    function processExitedAssets(address vault, address user, ExitPosition calldata exitPosition) external {
-        // fetch strategy proxy
-        address proxy = getStrategyProxy(vault, user);
-        if (!isStrategyProxyExiting[proxy]) revert ExitQueueNotEntered();
-
-        // process position
-        _osTokenVaultEscrow.processExitedAssets(
-            vault, exitPosition.positionTicket, exitPosition.timestamp, exitPosition.exitQueueIndex
-        );
-    }
-
-    /// @inheritdoc ILeverageStrategy
-    function claimExitedAssets(address vault, address user, uint256 exitPositionTicket) external {
+    function claimExitedAssets(address vault, address user, ExitPosition calldata exitPosition) external {
         // fetch strategy proxy
         address proxy = getStrategyProxy(vault, user);
         if (!isStrategyProxyExiting[proxy]) revert ExitQueueNotEntered();
 
         // fetch exit position
-        (address owner,, uint256 exitedOsTokenShares) = _osTokenVaultEscrow.getPosition(vault, exitPositionTicket);
+        (address owner, uint256 exitedAssets, uint256 exitedOsTokenShares) =
+            _osTokenVaultEscrow.getPosition(vault, exitPosition.positionTicket);
         if (owner != proxy) revert InvalidExitQueueTicket();
 
         if (exitedOsTokenShares <= 1) {
@@ -221,11 +209,18 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
             return;
         }
 
+        if (exitedAssets == 0) {
+            // the exit assets are not processed
+            _osTokenVaultEscrow.processExitedAssets(
+                vault, exitPosition.positionTicket, exitPosition.timestamp, exitPosition.exitQueueIndex
+            );
+        }
+
         // flashloan the exited osToken shares
         _osTokenFlashLoans.flashLoan(
             address(this),
             exitedOsTokenShares,
-            abi.encode(FlashloanAction.ClaimExitedAssets, vault, proxy, exitPositionTicket)
+            abi.encode(FlashloanAction.ClaimExitedAssets, vault, proxy, exitPosition.positionTicket)
         );
 
         // withdraw left assets to the user
@@ -239,12 +234,13 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     }
 
     /// @inheritdoc ILeverageStrategy
-    function rescueVaultAssets(address vault, uint256 exitPositionTicket) external {
+    function rescueVaultAssets(address vault, ExitPosition calldata exitPosition) external {
         address proxy = getStrategyProxy(vault, msg.sender);
         if (!isStrategyProxyExiting[proxy]) revert ExitQueueNotEntered();
 
         // fetch exit position
-        (address owner,, uint256 exitedOsTokenShares) = _osTokenVaultEscrow.getPosition(vault, exitPositionTicket);
+        (address owner, uint256 exitedAssets, uint256 exitedOsTokenShares) =
+            _osTokenVaultEscrow.getPosition(vault, exitPosition.positionTicket);
         if (owner != proxy) revert InvalidExitQueueTicket();
 
         if (exitedOsTokenShares <= 1) {
@@ -254,11 +250,18 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
             return;
         }
 
+        if (exitedAssets == 0) {
+            // the exit assets are not processed
+            _osTokenVaultEscrow.processExitedAssets(
+                vault, exitPosition.positionTicket, exitPosition.timestamp, exitPosition.exitQueueIndex
+            );
+        }
+
         // flashloan the exited osToken shares
         _osTokenFlashLoans.flashLoan(
             address(this),
             exitedOsTokenShares,
-            abi.encode(FlashloanAction.RescueVaultAssets, vault, proxy, exitPositionTicket)
+            abi.encode(FlashloanAction.RescueVaultAssets, vault, proxy, exitPosition.positionTicket)
         );
 
         // update state
