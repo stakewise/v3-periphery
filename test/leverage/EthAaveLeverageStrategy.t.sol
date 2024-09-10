@@ -41,7 +41,7 @@ import {StrategyProxy} from '../../src/StrategyProxy.sol';
 contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     uint256 public constant forkBlockNumber = 20_620_920;
 
-    uint256 public constant liqThresholdPercent = 0.999 ether;
+    uint64 public constant liqThresholdPercent = 0.999 ether;
     uint256 public constant liqBonusPercent = 1.001 ether;
     uint256 public constant exitingAssetsClaimDelay = 24 hours;
     uint256 public constant maxVaultLtvPercent = 0.995 ether;
@@ -577,7 +577,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         strategy.enterExitQueue(vault, 1 ether);
 
         vm.expectRevert(ILeverageStrategy.InvalidExitQueueTicket.selector);
-                ILeverageStrategy.ExitPosition memory exitPosition =
+        ILeverageStrategy.ExitPosition memory exitPosition =
             ILeverageStrategy.ExitPosition({positionTicket: 100, timestamp: 0, exitQueueIndex: 0});
         strategy.claimExitedAssets(vault, address(this), exitPosition);
     }

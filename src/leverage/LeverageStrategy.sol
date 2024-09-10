@@ -173,9 +173,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         uint256 flashloanOsTokenShares = _getFlashloanOsTokenShares(vault, leverageOsTokenShares);
 
         // execute flashloan
-        _osTokenFlashLoans.flashLoan(
-            address(this), flashloanOsTokenShares, abi.encode(FlashloanAction.Deposit, vault, proxy)
-        );
+        _osTokenFlashLoans.flashLoan(flashloanOsTokenShares, abi.encode(FlashloanAction.Deposit, vault, proxy));
 
         // emit event
         emit Deposited(vault, msg.sender, osTokenShares, flashloanOsTokenShares);
@@ -218,7 +216,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
 
         // flashloan the exited osToken shares
         _osTokenFlashLoans.flashLoan(
-            address(this),
             exitedOsTokenShares,
             abi.encode(FlashloanAction.ClaimExitedAssets, vault, proxy, exitPosition.positionTicket)
         );
@@ -259,7 +256,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
 
         // flashloan the exited osToken shares
         _osTokenFlashLoans.flashLoan(
-            address(this),
             exitedOsTokenShares,
             abi.encode(FlashloanAction.RescueVaultAssets, vault, proxy, exitPosition.positionTicket)
         );
@@ -289,9 +285,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         osTokenShares += Math.mulDiv(osTokenShares, maxSlippagePercent, _wad);
 
         // flashloan the osToken shares
-        _osTokenFlashLoans.flashLoan(
-            address(this), osTokenShares, abi.encode(FlashloanAction.RescueLendingAssets, proxy, assets)
-        );
+        _osTokenFlashLoans.flashLoan(osTokenShares, abi.encode(FlashloanAction.RescueLendingAssets, proxy, assets));
 
         // withdraw left assets to the user
         (uint256 claimedOsTokenShares, uint256 claimedAssets) = _claimProxyAssets(proxy, msg.sender);
