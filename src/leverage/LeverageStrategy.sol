@@ -327,7 +327,9 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     }
 
     /// @inheritdoc ILeverageStrategy
-    function upgradeProxy(address vault) external {
+    function upgradeProxy(
+        address vault
+    ) external {
         // fetch strategy proxy
         address proxy = getStrategyProxy(vault, msg.sender);
         if (isStrategyProxyExiting[proxy]) revert Errors.ExitRequestNotProcessed();
@@ -599,7 +601,9 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
      * @param vault The address of the vault
      * @return The vault LTV
      */
-    function _getVaultLtv(address vault) internal view returns (uint256) {
+    function _getVaultLtv(
+        address vault
+    ) internal view returns (uint256) {
         uint256 vaultLtvPercent = _osTokenConfig.getConfig(vault).ltvPercent;
         // check whether there is max vault LTV percent set in the strategy config
         bytes memory vaultMaxLtvPercentConfig =
@@ -786,11 +790,9 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
      * @return borrowedAssets The amount of borrowed assets
      * @return suppliedOsTokenShares The amount of supplied osToken shares
      */
-    function _getBorrowState(address proxy)
-        internal
-        view
-        virtual
-        returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares);
+    function _getBorrowState(
+        address proxy
+    ) internal view virtual returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares);
 
     /**
      * @dev Locks OsToken shares to the lending protocol

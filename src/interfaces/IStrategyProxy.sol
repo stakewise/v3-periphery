@@ -12,7 +12,9 @@ interface IStrategyProxy {
      * @notice Initializes the proxy.
      * @param initialOwner The address of the owner
      */
-    function initialize(address initialOwner) external;
+    function initialize(
+        address initialOwner
+    ) external;
 
     /**
      * @notice Executes a call on the target contract. Can only be called by the owner.

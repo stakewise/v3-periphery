@@ -80,7 +80,9 @@ contract StrategiesRegistry is Ownable2Step, IStrategiesRegistry {
     }
 
     /// @inheritdoc IStrategiesRegistry
-    function initialize(address _owner) external onlyOwner {
+    function initialize(
+        address _owner
+    ) external onlyOwner {
         if (_owner == address(0)) revert Errors.ZeroAddress();
         if (_initialized) revert Errors.AccessDenied();
 

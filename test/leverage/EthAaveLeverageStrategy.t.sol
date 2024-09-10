@@ -183,7 +183,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         osTokenShares = IERC20(osToken).balanceOf(address(this));
     }
 
-    function _hashTypedDataV4(bytes32 structHash) internal view returns (bytes32) {
+    function _hashTypedDataV4(
+        bytes32 structHash
+    ) internal view returns (bytes32) {
         return MessageHashUtils.toTypedDataHash(
             keccak256(
                 abi.encode(
@@ -198,7 +200,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         );
     }
 
-    function _collateralizeVault(address _vault) private {
+    function _collateralizeVault(
+        address _vault
+    ) private {
         IKeeperValidators.ApprovalParams memory approvalParams = IKeeperValidators.ApprovalParams({
             validatorsRegistryRoot: IValidatorsRegistry(validatorsRegistry).get_deposit_root(),
             deadline: vm.getBlockTimestamp() + 1,
@@ -227,11 +231,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         Keeper(keeper).approveValidators(approvalParams);
     }
 
-    function _getBorrowState(address proxy)
-        internal
-        view
-        returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares)
-    {
+    function _getBorrowState(
+        address proxy
+    ) internal view returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares) {
         suppliedOsTokenShares = IScaledBalanceToken(aaveOsToken).scaledBalanceOf(proxy);
         if (suppliedOsTokenShares != 0) {
             uint256 normalizedIncome = IPool(aavePool).getReserveNormalizedIncome(osToken);
