@@ -113,12 +113,12 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     /// @inheritdoc ILeverageStrategy
     function permit(address vault, uint256 osTokenShares, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external {
         (address proxy,) = _getOrCreateStrategyProxy(vault, msg.sender);
-        IStrategyProxy(proxy).execute(
+        try IStrategyProxy(proxy).execute(
             address(_osToken),
             abi.encodeWithSelector(
                 IERC20Permit(address(_osToken)).permit.selector, msg.sender, proxy, osTokenShares, deadline, v, r, s
             )
-        );
+        ) {} catch {}
     }
 
     /// @inheritdoc ILeverageStrategy
