@@ -162,15 +162,15 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
 
             // mint max possible osToken shares
             leverageOsTokenShares = _mintOsTokenShares(vault, proxy, assetsToBorrow, type(uint256).max);
-            if (leverageOsTokenShares == 0) {
-                // no osToken shares to leverage
-                emit Deposited(vault, msg.sender, osTokenShares, 0);
-                return;
-            }
         }
 
         // calculate flash loaned osToken shares
         uint256 flashloanOsTokenShares = _getFlashloanOsTokenShares(vault, leverageOsTokenShares);
+        if (flashloanOsTokenShares == 0) {
+            // no osToken shares to leverage
+            emit Deposited(vault, msg.sender, osTokenShares, 0);
+            return;
+        }
 
         // execute flashloan
         _osTokenFlashLoans.flashLoan(flashloanOsTokenShares, abi.encode(FlashloanAction.Deposit, vault, proxy));
