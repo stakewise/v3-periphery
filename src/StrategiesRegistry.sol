@@ -12,8 +12,6 @@ import {IStrategiesRegistry} from './interfaces/IStrategiesRegistry.sol';
  * @notice Defines the registry functionality that keeps track of Strategies and their settings
  */
 contract StrategiesRegistry is Ownable2Step, IStrategiesRegistry {
-    uint256 private constant _maxPercent = 1e18;
-
     /// @inheritdoc IStrategiesRegistry
     mapping(address strategy => bool enabled) public strategies;
 

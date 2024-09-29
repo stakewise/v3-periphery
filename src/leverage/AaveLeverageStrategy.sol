@@ -17,8 +17,6 @@ import {LeverageStrategy} from './LeverageStrategy.sol';
  * @notice Defines the Aave leverage strategy functionality
  */
 abstract contract AaveLeverageStrategy is LeverageStrategy {
-    uint256 private constant _wad = 1e18;
-
     IPool private immutable _aavePool;
     IPoolDataProvider private immutable _aavePoolDataProvider;
     IScaledBalanceToken private immutable _aaveOsToken;
