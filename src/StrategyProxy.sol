@@ -22,7 +22,9 @@ contract StrategyProxy is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
     }
 
     /// @inheritdoc IStrategyProxy
-    function initialize(address initialOwner) external initializer {
+    function initialize(
+        address initialOwner
+    ) external initializer {
         __ReentrancyGuard_init();
         __Ownable_init(initialOwner);
     }

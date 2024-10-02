@@ -17,8 +17,6 @@ import {LeverageStrategy} from './LeverageStrategy.sol';
  * @notice Defines the Aave leverage strategy functionality
  */
 abstract contract AaveLeverageStrategy is LeverageStrategy {
-    uint256 private constant _wad = 1e18;
-
     IPool private immutable _aavePool;
     IPoolDataProvider private immutable _aavePoolDataProvider;
     IScaledBalanceToken private immutable _aaveOsToken;
@@ -89,12 +87,9 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
     }
 
     /// @inheritdoc LeverageStrategy
-    function _getBorrowState(address proxy)
-        internal
-        view
-        override
-        returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares)
-    {
+    function _getBorrowState(
+        address proxy
+    ) internal view override returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares) {
         suppliedOsTokenShares = _aaveOsToken.scaledBalanceOf(proxy);
         if (suppliedOsTokenShares != 0) {
             uint256 normalizedIncome = _aavePool.getReserveNormalizedIncome(address(_osToken));

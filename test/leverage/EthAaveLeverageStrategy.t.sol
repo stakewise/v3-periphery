@@ -41,7 +41,7 @@ import {StrategyProxy} from '../../src/StrategyProxy.sol';
 contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     uint256 public constant forkBlockNumber = 20_620_920;
 
-    uint256 public constant liqThresholdPercent = 0.999 ether;
+    uint64 public constant liqThresholdPercent = 0.999 ether;
     uint256 public constant liqBonusPercent = 1.001 ether;
     uint256 public constant exitingAssetsClaimDelay = 24 hours;
     uint256 public constant maxVaultLtvPercent = 0.995 ether;
@@ -183,7 +183,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         osTokenShares = IERC20(osToken).balanceOf(address(this));
     }
 
-    function _hashTypedDataV4(bytes32 structHash) internal view returns (bytes32) {
+    function _hashTypedDataV4(
+        bytes32 structHash
+    ) internal view returns (bytes32) {
         return MessageHashUtils.toTypedDataHash(
             keccak256(
                 abi.encode(
@@ -198,7 +200,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         );
     }
 
-    function _collateralizeVault(address _vault) private {
+    function _collateralizeVault(
+        address _vault
+    ) private {
         IKeeperValidators.ApprovalParams memory approvalParams = IKeeperValidators.ApprovalParams({
             validatorsRegistryRoot: IValidatorsRegistry(validatorsRegistry).get_deposit_root(),
             deadline: vm.getBlockTimestamp() + 1,
@@ -227,11 +231,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         Keeper(keeper).approveValidators(approvalParams);
     }
 
-    function _getBorrowState(address proxy)
-        internal
-        view
-        returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares)
-    {
+    function _getBorrowState(
+        address proxy
+    ) internal view returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares) {
         suppliedOsTokenShares = IScaledBalanceToken(aaveOsToken).scaledBalanceOf(proxy);
         if (suppliedOsTokenShares != 0) {
             uint256 normalizedIncome = IPool(aavePool).getReserveNormalizedIncome(osToken);
@@ -577,7 +579,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         strategy.enterExitQueue(vault, 1 ether);
 
         vm.expectRevert(ILeverageStrategy.InvalidExitQueueTicket.selector);
-                ILeverageStrategy.ExitPosition memory exitPosition =
+        ILeverageStrategy.ExitPosition memory exitPosition =
             ILeverageStrategy.ExitPosition({positionTicket: 100, timestamp: 0, exitQueueIndex: 0});
         strategy.claimExitedAssets(vault, address(this), exitPosition);
     }

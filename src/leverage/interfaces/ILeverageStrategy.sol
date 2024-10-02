@@ -123,7 +123,9 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param proxy The address of the proxy
      * @return isExiting True if the proxy is exiting
      */
-    function isStrategyProxyExiting(address proxy) external view returns (bool isExiting);
+    function isStrategyProxyExiting(
+        address proxy
+    ) external view returns (bool isExiting);
 
     /**
      * @notice Updates the vault state
@@ -193,5 +195,7 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @notice Upgrade the strategy proxy. Can only be called by the proxy owner.
      * @param vault The address of the vault
      */
-    function upgradeProxy(address vault) external;
+    function upgradeProxy(
+        address vault
+    ) external;
 }

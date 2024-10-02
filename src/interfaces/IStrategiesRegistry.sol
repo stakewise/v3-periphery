@@ -40,21 +40,27 @@ interface IStrategiesRegistry {
      * @param strategy The address of the strategy to check whether it is registered
      * @return `true` for the registered Strategy, `false` otherwise
      */
-    function strategies(address strategy) external view returns (bool);
+    function strategies(
+        address strategy
+    ) external view returns (bool);
 
     /**
      * @notice Get the strategy proxy address based on the strategy proxy ID
      * @param strategyProxyId The ID of the strategy proxy to get the address
      * @return The address of the strategy proxy
      */
-    function strategyProxyIdToProxy(bytes32 strategyProxyId) external view returns (address);
+    function strategyProxyIdToProxy(
+        bytes32 strategyProxyId
+    ) external view returns (address);
 
     /**
      * @notice Registered Strategy Proxies
      * @param proxy The address of the proxy to check whether it is registered
      * @return `true` for the registered Strategy proxy, `false` otherwise
      */
-    function strategyProxies(address proxy) external view returns (bool);
+    function strategyProxies(
+        address proxy
+    ) external view returns (bool);
 
     /**
      * @notice Get strategy configuration
@@ -93,5 +99,7 @@ interface IStrategiesRegistry {
      * @notice Function for initializing the registry. Can only be called once during the deployment.
      * @param _owner The address of the owner of the contract
      */
-    function initialize(address _owner) external;
+    function initialize(
+        address _owner
+    ) external;
 }

@@ -5,7 +5,6 @@ pragma solidity ^0.8.26;
 import {Ownable2Step, Ownable} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {Errors} from '@stakewise-core/libraries/Errors.sol';
 import {IStrategiesRegistry} from './interfaces/IStrategiesRegistry.sol';
-import {IStrategy} from './interfaces/IStrategy.sol';
 
 /**
  * @title StrategiesRegistry
@@ -13,8 +12,6 @@ import {IStrategy} from './interfaces/IStrategy.sol';
  * @notice Defines the registry functionality that keeps track of Strategies and their settings
  */
 contract StrategiesRegistry is Ownable2Step, IStrategiesRegistry {
-    uint256 private constant _maxPercent = 1e18;
-
     /// @inheritdoc IStrategiesRegistry
     mapping(address strategy => bool enabled) public strategies;
 
@@ -80,7 +77,9 @@ contract StrategiesRegistry is Ownable2Step, IStrategiesRegistry {
     }
 
     /// @inheritdoc IStrategiesRegistry
-    function initialize(address _owner) external onlyOwner {
+    function initialize(
+        address _owner
+    ) external onlyOwner {
         if (_owner == address(0)) revert Errors.ZeroAddress();
         if (_initialized) revert Errors.AccessDenied();
 

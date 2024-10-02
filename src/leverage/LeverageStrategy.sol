@@ -113,12 +113,12 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     /// @inheritdoc ILeverageStrategy
     function permit(address vault, uint256 osTokenShares, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external {
         (address proxy,) = _getOrCreateStrategyProxy(vault, msg.sender);
-        IStrategyProxy(proxy).execute(
+        try IStrategyProxy(proxy).execute(
             address(_osToken),
             abi.encodeWithSelector(
                 IERC20Permit(address(_osToken)).permit.selector, msg.sender, proxy, osTokenShares, deadline, v, r, s
             )
-        );
+        ) {} catch {}
     }
 
     /// @inheritdoc ILeverageStrategy
@@ -162,20 +162,18 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
 
             // mint max possible osToken shares
             leverageOsTokenShares = _mintOsTokenShares(vault, proxy, assetsToBorrow, type(uint256).max);
-            if (leverageOsTokenShares == 0) {
-                // no osToken shares to leverage
-                emit Deposited(vault, msg.sender, osTokenShares, 0);
-                return;
-            }
         }
 
         // calculate flash loaned osToken shares
         uint256 flashloanOsTokenShares = _getFlashloanOsTokenShares(vault, leverageOsTokenShares);
+        if (flashloanOsTokenShares == 0) {
+            // no osToken shares to leverage
+            emit Deposited(vault, msg.sender, osTokenShares, 0);
+            return;
+        }
 
         // execute flashloan
-        _osTokenFlashLoans.flashLoan(
-            address(this), flashloanOsTokenShares, abi.encode(FlashloanAction.Deposit, vault, proxy)
-        );
+        _osTokenFlashLoans.flashLoan(flashloanOsTokenShares, abi.encode(FlashloanAction.Deposit, vault, proxy));
 
         // emit event
         emit Deposited(vault, msg.sender, osTokenShares, flashloanOsTokenShares);
@@ -218,7 +216,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
 
         // flashloan the exited osToken shares
         _osTokenFlashLoans.flashLoan(
-            address(this),
             exitedOsTokenShares,
             abi.encode(FlashloanAction.ClaimExitedAssets, vault, proxy, exitPosition.positionTicket)
         );
@@ -259,7 +256,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
 
         // flashloan the exited osToken shares
         _osTokenFlashLoans.flashLoan(
-            address(this),
             exitedOsTokenShares,
             abi.encode(FlashloanAction.RescueVaultAssets, vault, proxy, exitPosition.positionTicket)
         );
@@ -289,9 +285,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         osTokenShares += Math.mulDiv(osTokenShares, maxSlippagePercent, _wad);
 
         // flashloan the osToken shares
-        _osTokenFlashLoans.flashLoan(
-            address(this), osTokenShares, abi.encode(FlashloanAction.RescueLendingAssets, proxy, assets)
-        );
+        _osTokenFlashLoans.flashLoan(osTokenShares, abi.encode(FlashloanAction.RescueLendingAssets, proxy, assets));
 
         // withdraw left assets to the user
         (uint256 claimedOsTokenShares, uint256 claimedAssets) = _claimProxyAssets(proxy, msg.sender);
@@ -333,7 +327,9 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     }
 
     /// @inheritdoc ILeverageStrategy
-    function upgradeProxy(address vault) external {
+    function upgradeProxy(
+        address vault
+    ) external {
         // fetch strategy proxy
         address proxy = getStrategyProxy(vault, msg.sender);
         if (isStrategyProxyExiting[proxy]) revert Errors.ExitRequestNotProcessed();
@@ -605,7 +601,9 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
      * @param vault The address of the vault
      * @return The vault LTV
      */
-    function _getVaultLtv(address vault) internal view returns (uint256) {
+    function _getVaultLtv(
+        address vault
+    ) internal view returns (uint256) {
         uint256 vaultLtvPercent = _osTokenConfig.getConfig(vault).ltvPercent;
         // check whether there is max vault LTV percent set in the strategy config
         bytes memory vaultMaxLtvPercentConfig =
@@ -792,11 +790,9 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
      * @return borrowedAssets The amount of borrowed assets
      * @return suppliedOsTokenShares The amount of supplied osToken shares
      */
-    function _getBorrowState(address proxy)
-        internal
-        view
-        virtual
-        returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares);
+    function _getBorrowState(
+        address proxy
+    ) internal view virtual returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares);
 
     /**
      * @dev Locks OsToken shares to the lending protocol
