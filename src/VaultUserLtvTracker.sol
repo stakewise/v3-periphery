@@ -15,6 +15,7 @@ import {IVaultUserLtvTracker} from './interfaces/IVaultUserLtvTracker.sol';
  * @notice Stores user with a maximum LTV value for each vault
  */
 contract VaultUserLtvTracker is IVaultUserLtvTracker {
+    uint256 private constant _wad = 1e18;
     IKeeperRewards private immutable _keeperRewards;
     IOsTokenVaultController private immutable _osTokenVaultController;
 
@@ -29,19 +30,16 @@ contract VaultUserLtvTracker is IVaultUserLtvTracker {
     }
 
     // Mapping to store the user with the highest LTV for each vault
-    mapping(address => address) private vaultToUser;
+    mapping(address vault => address user) private _vaultToUser;
 
     /// @inheritdoc IVaultUserLtvTracker
     function updateVaultMaxLtvUser(
         address vault,
-        address user,
+        address newUser,
         IKeeperRewards.HarvestParams calldata harvestParams
     ) external {
-        // rename to newUser for readability
-        address newUser = user;
-
         // Get the previous max LTV user for the vault
-        address prevUser = vaultToUser[vault];
+        address prevUser = _vaultToUser[vault];
 
         // Calculate the LTV for both users
         uint256 newLtv = _calculateLtv(vault, newUser, harvestParams);
@@ -49,7 +47,7 @@ contract VaultUserLtvTracker is IVaultUserLtvTracker {
 
         // If the new user has a higher LTV, update the record
         if (newLtv > prevLtv) {
-            vaultToUser[vault] = newUser;
+            _vaultToUser[vault] = newUser;
         }
     }
 
@@ -58,7 +56,7 @@ contract VaultUserLtvTracker is IVaultUserLtvTracker {
         address vault,
         IKeeperRewards.HarvestParams calldata harvestParams
     ) external returns (uint256) {
-        address user = vaultToUser[vault];
+        address user = _vaultToUser[vault];
 
         // Calculate the latest LTV for the stored user
         return _calculateLtv(vault, user, harvestParams);
@@ -86,10 +84,10 @@ contract VaultUserLtvTracker is IVaultUserLtvTracker {
         }
 
         // Get OsToken position
-        uint128 osTokenShares = IVaultOsToken(vault).osTokenPositions(user);
+        uint256 osTokenShares = IVaultOsToken(vault).osTokenPositions(user);
 
         // Convert OsToken position to Wei
-        uint256 osTokenAssets = _osTokenVaultController.convertToAssets(uint256(osTokenShares));
+        uint256 osTokenAssets = _osTokenVaultController.convertToAssets(osTokenShares);
 
         if (osTokenAssets == 0) {
             return 0;
@@ -106,6 +104,6 @@ contract VaultUserLtvTracker is IVaultUserLtvTracker {
         }
 
         // Calculate Loan-To-Value ratio
-        return Math.mulDiv(osTokenAssets, 1 ether, vaultAssets);
+        return Math.mulDiv(osTokenAssets, _wad, vaultAssets);
     }
 }
