@@ -39,7 +39,7 @@ import {OsTokenVaultEscrowAuth} from '../../src/OsTokenVaultEscrowAuth.sol';
 import {StrategyProxy} from '../../src/StrategyProxy.sol';
 
 contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
-    uint256 public constant forkBlockNumber = 20_620_920;
+    uint256 public constant forkBlockNumber = 20_928_188;
 
     uint64 public constant liqThresholdPercent = 0.999 ether;
     uint256 public constant liqBonusPercent = 1.001 ether;
@@ -59,7 +59,6 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     address public constant vaultsRegistry = 0x3a0008a588772446f6e656133C2D5029CC4FC20E;
     address public constant balancerVault = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
     address public constant aavePool = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
-    address public constant aavePoolDataProvider = 0x7B4EB56E7CD4b454BA8ff71E4518426369a138a3;
     address public constant aaveOracle = 0x54586bE62E3c3580375aE3723C145253060Ca0C2;
     address public constant aaveOsToken = 0x927709711794F3De5DdBF1D176bEE2D55Ba13c21;
     address public constant aaveVarDebtAssetToken = 0xeA51d7853EEFb32b6ee06b1C12E6dcCA88Be0fFE;
@@ -128,7 +127,6 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
             strategyProxyImplementation,
             balancerVault,
             aavePool,
-            aavePoolDataProvider,
             aaveOsToken,
             aaveVarDebtAssetToken
         );
@@ -415,7 +413,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         State memory state1 = _getState();
         int256 reward = SafeCast.toInt256(IEthVault(vault).totalAssets() * 0.03 ether / 1 ether / 12);
         uint256 secondsInYear = 365 * 24 * 60 * 60;
-        uint256 yearApy = 0.03 ether;
+        uint256 yearApy = 0.04 ether;
         vm.warp(vm.getBlockTimestamp() + 1 days);
         IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, reward, 0, yearApy / secondsInYear);
         vm.warp(vm.getBlockTimestamp() + 30 days);
@@ -666,7 +664,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
 
         // position went through the exit queue
         vm.warp(timestamp + 10 days);
-        reward += SafeCast.toInt256(IEthVault(vault).totalAssets() * 0.03 ether / 1 ether / 12 / 3);
+        reward += SafeCast.toInt256(IEthVault(vault).totalAssets() * 0.04 ether / 1 ether / 12 / 3);
         harvestParams = _setVaultRewards(vault, reward, 0, avgRewardPerSecond);
         strategy.updateVaultState(vault, harvestParams);
 
