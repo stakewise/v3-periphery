@@ -495,7 +495,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         strategy.updateVaultState(vault, harvestParams);
 
         vm.expectEmit(true, true, false, false);
-        emit ILeverageStrategy.ExitQueueEntered(vault, address(this), 0, vm.getBlockTimestamp(), 0);
+        emit ILeverageStrategy.ExitQueueEntered(vault, address(this), 0, vm.getBlockTimestamp(), 0, 0.5 ether);
         snapStart('EthAaveLeverageStrategyTest_test_enterExitQueue');
         strategy.enterExitQueue(vault, 0.5 ether);
         snapEnd();
@@ -539,7 +539,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
 
         vm.prank(address(1));
         vm.expectEmit(true, true, false, false);
-        emit ILeverageStrategy.ExitQueueEntered(vault, address(this), 0, vm.getBlockTimestamp(), 0);
+        emit ILeverageStrategy.ExitQueueEntered(vault, address(this), 0, vm.getBlockTimestamp(), 0, 1 ether);
         snapStart('EthAaveLeverageStrategyTest_test_forceEnterExitQueue_vaultForceExitLtvPercent');
         strategy.forceEnterExitQueue(vault, address(this));
         snapEnd();
@@ -556,7 +556,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
 
         vm.prank(address(1));
         vm.expectEmit(true, true, false, false);
-        emit ILeverageStrategy.ExitQueueEntered(vault, address(this), 0, vm.getBlockTimestamp(), 0);
+        emit ILeverageStrategy.ExitQueueEntered(vault, address(this), 0, vm.getBlockTimestamp(), 0, 1 ether);
         snapStart('EthAaveLeverageStrategyTest_test_forceEnterExitQueue_borrowForceExitLtvPercent');
         strategy.forceEnterExitQueue(vault, address(this));
         snapEnd();
