@@ -72,9 +72,15 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param positionTicket The exit position ticket
      * @param timestamp The timestamp of the exit position ticket
      * @param osTokenShares The amount of osToken shares to exit
+     * @param positionPercent The percent of the position that is exiting from strategy
      */
     event ExitQueueEntered(
-        address indexed vault, address indexed user, uint256 positionTicket, uint256 timestamp, uint256 osTokenShares
+        address indexed vault,
+        address indexed user,
+        uint256 positionTicket,
+        uint256 timestamp,
+        uint256 osTokenShares,
+        uint256 positionPercent
     );
 
     /**

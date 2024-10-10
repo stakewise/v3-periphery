@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
-import {IPoolDataProvider} from '@aave-core/interfaces/IPoolDataProvider.sol';
 import {IPool} from '@aave-core/interfaces/IPool.sol';
 import {IScaledBalanceToken} from '@aave-core/interfaces/IScaledBalanceToken.sol';
 import {WadRayMath} from '@aave-core/protocol/libraries/math/WadRayMath.sol';
@@ -17,8 +16,9 @@ import {LeverageStrategy} from './LeverageStrategy.sol';
  * @notice Defines the Aave leverage strategy functionality
  */
 abstract contract AaveLeverageStrategy is LeverageStrategy {
+    uint8 private constant _emodeCategory = 1;
+
     IPool private immutable _aavePool;
-    IPoolDataProvider private immutable _aavePoolDataProvider;
     IScaledBalanceToken private immutable _aaveOsToken;
     IScaledBalanceToken private immutable _aaveVarDebtAssetToken;
 
@@ -34,7 +34,6 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
      * @param strategyProxyImplementation The address of the StrategyProxy implementation
      * @param balancerVault The address of the BalancerVault contract
      * @param aavePool The address of the Aave pool contract
-     * @param aavePoolDataProvider The address of the Aave pool data provider contract
      * @param aaveOsToken The address of the Aave OsToken contract
      * @param aaveVarDebtAssetToken The address of the Aave variable debt asset token contract
      */
@@ -49,7 +48,6 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
         address strategyProxyImplementation,
         address balancerVault,
         address aavePool,
-        address aavePoolDataProvider,
         address aaveOsToken,
         address aaveVarDebtAssetToken
     )
@@ -66,16 +64,14 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
         )
     {
         _aavePool = IPool(aavePool);
-        _aavePoolDataProvider = IPoolDataProvider(aavePoolDataProvider);
         _aaveOsToken = IScaledBalanceToken(aaveOsToken);
         _aaveVarDebtAssetToken = IScaledBalanceToken(aaveVarDebtAssetToken);
     }
 
     /// @inheritdoc LeverageStrategy
     function _getBorrowLtv() internal view override returns (uint256) {
-        uint256 emodeCategory = _aavePoolDataProvider.getReserveEModeCategory(address(_osToken));
         // convert to 1e18 precision
-        uint256 aaveLtv = uint256(_aavePool.getEModeCategoryData(SafeCast.toUint8(emodeCategory)).ltv) * 1e14;
+        uint256 aaveLtv = uint256(_aavePool.getEModeCategoryCollateralConfig(_emodeCategory).ltv) * 1e14;
 
         // check whether there is max borrow LTV percent set in the strategy config
         bytes memory maxBorrowLtvPercentConfig =
@@ -145,9 +141,8 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
         }
 
         // setup emode category
-        uint256 emodeCategory = _aavePoolDataProvider.getReserveEModeCategory(address(_osToken));
         IStrategyProxy(proxy).execute(
-            address(_aavePool), abi.encodeWithSelector(_aavePool.setUserEMode.selector, SafeCast.toUint8(emodeCategory))
+            address(_aavePool), abi.encodeWithSelector(_aavePool.setUserEMode.selector, _emodeCategory)
         );
 
         // approve Aave pool to spend OsToken and AssetToken

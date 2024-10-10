@@ -18,7 +18,6 @@ contract DeployEthAaveLeverageStrategy is Script {
         address osTokenVaultEscrow;
         address balancerVault;
         address aavePool;
-        address aavePoolDataProvider;
         address aaveOsToken;
         address aaveVarDebtAssetToken;
         address rescueVault;
@@ -39,7 +38,6 @@ contract DeployEthAaveLeverageStrategy is Script {
         params.osTokenVaultEscrow = vm.envAddress('OS_TOKEN_VAULT_ESCROW');
         params.balancerVault = vm.envAddress('BALANCER_VAULT');
         params.aavePool = vm.envAddress('AAVE_POOL');
-        params.aavePoolDataProvider = vm.envAddress('AAVE_POOL_DATA_PROVIDER');
         params.aaveOsToken = vm.envAddress('AAVE_OS_TOKEN');
         params.aaveVarDebtAssetToken = vm.envAddress('AAVE_VAR_DEBT_ASSET_TOKEN');
         params.maxVaultLtvPercent = vm.envUint('MAX_VAULT_LTV_PERCENT');
@@ -79,7 +77,6 @@ contract DeployEthAaveLeverageStrategy is Script {
             address(strategyProxyImpl),
             params.balancerVault,
             params.aavePool,
-            params.aavePoolDataProvider,
             params.aaveOsToken,
             params.aaveVarDebtAssetToken
         );
