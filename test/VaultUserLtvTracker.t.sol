@@ -35,13 +35,11 @@ contract VaultUserLtvTrackerTest is Test, GasSnapshot {
 
     uint256 public constant exitingAssetsClaimDelay = 24 hours;
 
-    address public constant oldVault = 0xAC0F906E433d58FA868F936E8A43230473652885;
     address public constant validatorsRegistry = 0x00000000219ab540356cBB839Cbe05303d7705Fa;
     address public constant sharedMevEscrow = 0x48319f97E5Da1233c21c48b80097c0FB7a20Ff86;
     address public constant depositDataRegistry = 0x75AB6DdCe07556639333d3Df1eaa684F5735223e;
     address public constant keeper = 0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5;
     address public constant osToken = 0xf1C9acDc66974dFB6dEcB12aA385b9cD01190E38;
-    address public constant assetToken = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address public constant osTokenVaultController = 0x2A261e60FB14586B474C208b1B7AC6D0f5000306;
     address public constant osTokenConfig = 0x287d1e2A8dE183A8bf8f2b09Fa1340fBd766eb59;
     address public constant vaultsRegistry = 0x3a0008a588772446f6e656133C2D5029CC4FC20E;
@@ -58,8 +56,7 @@ contract VaultUserLtvTrackerTest is Test, GasSnapshot {
     VaultUserLtvTracker public tracker;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString('MAINNET_RPC_URL'));
-        vm.rollFork(forkBlockNumber);
+        vm.createSelectFork(vm.envString('MAINNET_RPC_URL'), forkBlockNumber);
 
         // create vault
         vaultImpl = address(
