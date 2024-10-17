@@ -16,12 +16,14 @@ quote_style = "single"
 
 [rpc_endpoints]
 mainnet = "${MAINNET_RPC_URL}"
+mainnet_fork = "${MAINNET_FORK_RPC_URL}"
 holesky = "${HOLESKY_RPC_URL}"
 chiado = "${CHIADO_RPC_URL}"
 gnosis = "${GNOSIS_RPC_URL}"
 
 [etherscan]
 mainnet = { key = "${ETHERSCAN_API_KEY}" }
+mainnet_fork = { key = "${TENDERLY_ACCESS_KEY}", chain = 1, url = "${MAINNET_FORK_RPC_URL}/verify/etherscan" }
 holesky = { key = "${ETHERSCAN_API_KEY}" }
 chiado = { key = "${ETHERSCAN_API_KEY}" }
 gnosis = { key = "${ETHERSCAN_API_KEY}" }

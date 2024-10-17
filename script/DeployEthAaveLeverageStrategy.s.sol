@@ -22,6 +22,7 @@ contract DeployEthAaveLeverageStrategy is Script {
         address aaveVarDebtAssetToken;
         address rescueVault;
         address governor;
+        address strategiesRegistry;
         uint256 maxVaultLtvPercent;
         uint256 maxBorrowLtvPercent;
         uint256 vaultForceExitLtvPercent;
@@ -47,6 +48,7 @@ contract DeployEthAaveLeverageStrategy is Script {
         params.rescueVault = vm.envAddress('RESCUE_VAULT');
         params.balancerPoolId = vm.envUint('BALANCER_POOL_ID');
         params.governor = vm.envAddress('GOVERNOR');
+        params.strategiesRegistry = vm.envAddress('STRATEGIES_REGISTRY');
     }
 
     function run() external {
@@ -57,9 +59,8 @@ contract DeployEthAaveLeverageStrategy is Script {
         // Read environment variables.
         ConfigParams memory params = _readEnvVariables();
 
-        // Deploy strategies registry.
-        StrategiesRegistry strategiesRegistry = new StrategiesRegistry();
-        console.log('StrategiesRegistry deployed at: ', address(strategiesRegistry));
+        // Load strategies registry.
+        StrategiesRegistry strategiesRegistry = StrategiesRegistry(params.strategiesRegistry);
 
         // Deploy strategy proxy implementation.
         StrategyProxy strategyProxyImpl = new StrategyProxy();
@@ -73,7 +74,7 @@ contract DeployEthAaveLeverageStrategy is Script {
             params.osTokenConfig,
             params.osTokenFlashLoans,
             params.osTokenVaultEscrow,
-            address(strategiesRegistry),
+            params.strategiesRegistry,
             address(strategyProxyImpl),
             params.balancerVault,
             params.aavePool,
