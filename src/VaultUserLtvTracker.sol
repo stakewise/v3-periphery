@@ -30,7 +30,7 @@ contract VaultUserLtvTracker is IVaultUserLtvTracker {
     }
 
     // Mapping to store the user with the highest LTV for each vault
-    mapping(address vault => address user) private _vaultToUser;
+    mapping(address vault => address user) public vaultToUser;
 
     /// @inheritdoc IVaultUserLtvTracker
     function updateVaultMaxLtvUser(
@@ -39,7 +39,11 @@ contract VaultUserLtvTracker is IVaultUserLtvTracker {
         IKeeperRewards.HarvestParams calldata harvestParams
     ) external {
         // Get the previous max LTV user for the vault
-        address prevUser = _vaultToUser[vault];
+        address prevUser = vaultToUser[vault];
+
+        if (newUser == prevUser) {
+            return;
+        }
 
         // Calculate the LTV for both users
         uint256 newLtv = _calculateLtv(vault, newUser, harvestParams);
@@ -47,7 +51,7 @@ contract VaultUserLtvTracker is IVaultUserLtvTracker {
 
         // If the new user has a higher LTV, update the record
         if (newLtv > prevLtv) {
-            _vaultToUser[vault] = newUser;
+            vaultToUser[vault] = newUser;
         }
     }
 
@@ -56,7 +60,7 @@ contract VaultUserLtvTracker is IVaultUserLtvTracker {
         address vault,
         IKeeperRewards.HarvestParams calldata harvestParams
     ) external returns (uint256) {
-        address user = _vaultToUser[vault];
+        address user = vaultToUser[vault];
 
         // Calculate the latest LTV for the stored user
         return _calculateLtv(vault, user, harvestParams);
