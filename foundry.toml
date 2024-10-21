@@ -6,7 +6,10 @@ solc = "0.8.26"
 evm_version = "cancun"
 via_ir = true
 ffi = true
-fs_permissions = [{ access = "read-write", path = ".forge-snapshots/"}]
+ast = true
+build_info = true
+extra_output = ["storageLayout"]
+fs_permissions = [{ access = "read-write", path = ".forge-snapshots/"}, { access = "read", path = "out/" }]
 
 [fmt] # See https://book.getfoundry.sh/reference/config/formatter
 single_line_statement_block = "preserve"
@@ -23,9 +26,8 @@ gnosis = "${GNOSIS_RPC_URL}"
 
 [etherscan]
 mainnet = { key = "${ETHERSCAN_API_KEY}" }
-mainnet_fork = { key = "${TENDERLY_ACCESS_KEY}", chain = 1, url = "${MAINNET_FORK_RPC_URL}/verify/etherscan" }
 holesky = { key = "${ETHERSCAN_API_KEY}" }
-chiado = { key = "${ETHERSCAN_API_KEY}" }
-gnosis = { key = "${ETHERSCAN_API_KEY}" }
+chiado = { key = "${GNOSISSCAN_API_KEY}" }
+gnosis = { key = "${GNOSISSCAN_API_KEY}" }
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

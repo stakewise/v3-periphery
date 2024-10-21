@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
+
 pragma solidity ^0.8.26;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
+import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 
-contract AaveMock is Ownable {
+/**
+ * @title AaveMock
+ * @author StakeWise
+ * @notice Defines the mock for the Aave functionality
+ */
+contract AaveMock is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error ErrorInsufficientCollateral();
     error InvalidAssets();
 
@@ -36,10 +44,15 @@ contract AaveMock is Ownable {
 
     uint256 public varInterestRatePerSecond;
 
-    constructor(address osToken, address assetToken, address osTokenVaultController) Ownable(msg.sender) {
+    constructor(address osToken, address assetToken, address osTokenVaultController) {
         _osToken = IERC20(osToken);
         _assetToken = IERC20(assetToken);
         _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
+    }
+
+    function initialize(address initialOwner, uint256 _varInterestRatePerSecond) external initializer {
+        __Ownable_init(initialOwner);
+        varInterestRatePerSecond = _varInterestRatePerSecond;
     }
 
     function getAssetsPrices(
@@ -220,6 +233,11 @@ contract AaveMock is Ownable {
         SafeERC20.safeTransferFrom(_osToken, msg.sender, address(this), amount);
     }
 
+    function drain() external onlyOwner {
+        SafeERC20.safeTransfer(_assetToken, msg.sender, _assetToken.balanceOf(address(this)));
+        SafeERC20.safeTransfer(_osToken, msg.sender, _osToken.balanceOf(address(this)));
+    }
+
     function _checkCollateral(
         address user
     ) private {
@@ -232,4 +250,8 @@ contract AaveMock is Ownable {
             revert ErrorInsufficientCollateral();
         }
     }
+
+    function _authorizeUpgrade(
+        address
+    ) internal override onlyOwner {}
 }
