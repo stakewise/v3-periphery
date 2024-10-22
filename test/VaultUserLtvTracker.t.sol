@@ -31,7 +31,7 @@ import {IVaultUserLtvTracker, VaultUserLtvTracker} from '../src/VaultUserLtvTrac
 import {console} from 'forge-std/console.sol';
 
 contract VaultUserLtvTrackerTest is Test, GasSnapshot {
-    uint256 public constant forkBlockNumber = 20_620_920;
+    uint256 public constant forkBlockNumber = 20_928_188;
 
     uint256 public constant exitingAssetsClaimDelay = 24 hours;
 
