@@ -19,7 +19,6 @@ quote_style = "single"
 
 [rpc_endpoints]
 mainnet = "${MAINNET_RPC_URL}"
-mainnet_fork = "${MAINNET_FORK_RPC_URL}"
 holesky = "${HOLESKY_RPC_URL}"
 chiado = "${CHIADO_RPC_URL}"
 gnosis = "${GNOSIS_RPC_URL}"

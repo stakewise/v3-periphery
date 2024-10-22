@@ -32,7 +32,4 @@ contract DeployOsTokenVaultEscrowAuth is Script {
 
         vm.stopBroadcast();
     }
-
-    // excludes this contract from coverage report
-    function test() public {}
 }
