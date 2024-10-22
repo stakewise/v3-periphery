@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: AGPL-3.0-only
 
 pragma solidity ^0.8.26;
 
@@ -36,7 +36,4 @@ contract DeployStakeHelpers is Script {
 
         vm.stopBroadcast();
     }
-
-    // excludes this contract from coverage report
-    function test() public {}
 }
