@@ -387,7 +387,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         isStrategyProxyExiting[proxy] = true;
 
         // emit event
-        emit ExitQueueEntered(vault, user, positionTicket, block.timestamp, osTokenShares);
+        emit ExitQueueEntered(vault, user, positionTicket, block.timestamp, osTokenShares, positionPercent);
     }
 
     /**

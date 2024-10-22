@@ -27,7 +27,6 @@ contract EthAaveLeverageStrategy is AaveLeverageStrategy {
      * @param strategyProxyImplementation The address of the StrategyProxy implementation
      * @param balancerVault The address of the BalancerVault contract
      * @param aavePool The address of the Aave pool contract
-     * @param aavePoolDataProvider The address of the Aave pool data provider contract
      * @param aaveOsToken The address of the Aave OsToken contract
      * @param aaveVarDebtAssetToken The address of the Aave variable debt asset token contract
      */
@@ -42,7 +41,6 @@ contract EthAaveLeverageStrategy is AaveLeverageStrategy {
         address strategyProxyImplementation,
         address balancerVault,
         address aavePool,
-        address aavePoolDataProvider,
         address aaveOsToken,
         address aaveVarDebtAssetToken
     )
@@ -57,7 +55,6 @@ contract EthAaveLeverageStrategy is AaveLeverageStrategy {
             strategyProxyImplementation,
             balancerVault,
             aavePool,
-            aavePoolDataProvider,
             aaveOsToken,
             aaveVarDebtAssetToken
         )
