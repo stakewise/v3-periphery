@@ -35,7 +35,7 @@ contract StakeHelpersTest is Test {
 
     function test_calculateStake() public {
         uint256 stakeAssets = 1 ether;
-        uint256 expectedOsTokenAssets = 0.899996668676611560 ether;
+        uint256 expectedOsTokenAssets = 0.89999666867661156 ether;
         uint256 expectedOsTokenShares =
             IOsTokenVaultController(osTokenController).convertToShares(expectedOsTokenAssets);
 
