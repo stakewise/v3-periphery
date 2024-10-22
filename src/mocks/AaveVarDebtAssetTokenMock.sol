@@ -13,8 +13,10 @@ import {AaveMock} from './AaveMock.sol';
  * @notice Defines the mock for the Aave asset variable debt token functionality
  */
 contract AaveVarDebtAssetTokenMock is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address private immutable _aaveMock;
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(
         address aaveMock
     ) {

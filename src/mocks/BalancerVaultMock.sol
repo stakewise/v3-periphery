@@ -21,10 +21,16 @@ contract BalancerVaultMock is IBalancerVault, Initializable, UUPSUpgradeable, Ow
     error InvalidFundManagement();
     error LimitExceeded();
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20 private immutable _osToken;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20 private immutable _assetToken;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IOsTokenVaultController private immutable _osTokenVaultController;
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(address osToken, address assetToken, address osTokenVaultController) {
         _osToken = IERC20(osToken);
         _assetToken = IERC20(assetToken);

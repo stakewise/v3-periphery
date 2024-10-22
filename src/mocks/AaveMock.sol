@@ -34,8 +34,13 @@ contract AaveMock is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     uint256 private constant _WAD = 1e18;
     uint256 private constant _RAY = 1e27;
 
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20 private immutable _osToken;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IERC20 private immutable _assetToken;
+
+    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IOsTokenVaultController private immutable _osTokenVaultController;
 
     mapping(address => uint256) public balances; // user => balance
@@ -44,6 +49,7 @@ contract AaveMock is Initializable, UUPSUpgradeable, OwnableUpgradeable {
 
     uint256 public varInterestRatePerSecond;
 
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(address osToken, address assetToken, address osTokenVaultController) {
         _osToken = IERC20(osToken);
         _assetToken = IERC20(assetToken);
