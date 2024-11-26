@@ -61,6 +61,11 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
     }
 
     /// @inheritdoc IMerkleDistributor
+    function getNextRewardsRootUpdateTimestamp() public view returns (uint64) {
+        return lastUpdateTimestamp + rewardsDelay;
+    }
+
+    /// @inheritdoc IMerkleDistributor
     function setRewardsRoot(
         bytes32 newRewardsRoot,
         string calldata newRewardsIpfsHash,
@@ -71,7 +76,7 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
             revert Errors.InvalidRewardsRoot();
         }
         // check whether rewards delay has passed
-        if (lastUpdateTimestamp + rewardsDelay > block.timestamp) {
+        if (getNextRewardsRootUpdateTimestamp() > block.timestamp) {
             revert Errors.TooEarlyUpdate();
         }
 
@@ -126,16 +131,11 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
     }
 
     /// @inheritdoc IMerkleDistributor
-    function distributeOneTime(
-        address token,
-        uint256 amount,
-        string calldata rewardsIpfsHash,
-        bytes calldata extraData
-    ) external override onlyOwner {
+    function distributeOneTime(address token, uint256 amount, string calldata rewardsIpfsHash) external onlyOwner {
         if (amount == 0) revert InvalidAmount();
 
         SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);
-        emit OneTimeDistributionAdded(msg.sender, token, amount, rewardsIpfsHash, extraData);
+        emit OneTimeDistributionAdded(msg.sender, token, amount, rewardsIpfsHash);
     }
 
     /// @inheritdoc IMerkleDistributor

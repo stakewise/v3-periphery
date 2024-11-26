@@ -58,10 +58,9 @@ interface IMerkleDistributor {
      * @param token The address of the token
      * @param amount The amount of tokens to distribute
      * @param rewardsIpfsHash The IPFS hash of the rewards
-     * @param extraData The extra data for the distribution
      */
     event OneTimeDistributionAdded(
-        address indexed caller, address indexed token, uint256 amount, string rewardsIpfsHash, bytes extraData
+        address indexed caller, address indexed token, uint256 amount, string rewardsIpfsHash
     );
 
     /**
@@ -113,6 +112,12 @@ interface IMerkleDistributor {
     function claimedAmounts(address token, address user) external view returns (uint256 cumulativeAmount);
 
     /**
+     * @notice Get the next rewards root update timestamp
+     * @return The next rewards root update timestamp
+     */
+    function getNextRewardsRootUpdateTimestamp() external view returns (uint64);
+
+    /**
      * @notice Set the new rewards root
      * @param newRewardsRoot The new rewards Merkle Tree root
      * @param newRewardsIpfsHash The new rewards IPFS hash
@@ -161,14 +166,8 @@ interface IMerkleDistributor {
      * @param token The address of the token
      * @param amount The amount of tokens to distribute
      * @param rewardsIpfsHash The IPFS hash of the rewards
-     * @param extraData The extra data for the distribution
      */
-    function distributeOneTime(
-        address token,
-        uint256 amount,
-        string calldata rewardsIpfsHash,
-        bytes calldata extraData
-    ) external;
+    function distributeOneTime(address token, uint256 amount, string calldata rewardsIpfsHash) external;
 
     /**
      * @notice Claim the tokens for a user

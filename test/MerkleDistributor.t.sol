@@ -116,7 +116,7 @@ contract MerkleDistributorTest is Test, GasSnapshot {
 
         // Ensure unauthorized accounts cannot call the function
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        distributor.distributeOneTime(address(swiseToken), amount, 'ipfsHash', '');
+        distributor.distributeOneTime(address(swiseToken), amount, 'ipfsHash');
 
         // Impersonate the owner to approve SWISE and distribute tokens
         vm.startPrank(owner);
@@ -125,16 +125,16 @@ contract MerkleDistributorTest is Test, GasSnapshot {
 
         // Test invalid amount (zero)
         vm.expectRevert(abi.encodeWithSelector(IMerkleDistributor.InvalidAmount.selector));
-        distributor.distributeOneTime(address(swiseToken), 0, 'ipfsHash', '');
+        distributor.distributeOneTime(address(swiseToken), 0, 'ipfsHash');
 
         snapStart('MerkleDistributorTest_test_distributeOneTime');
 
         // Expect the correct event to be emitted
         vm.expectEmit(true, true, false, true);
-        emit IMerkleDistributor.OneTimeDistributionAdded(owner, address(swiseToken), amount, 'ipfsHash', '');
+        emit IMerkleDistributor.OneTimeDistributionAdded(owner, address(swiseToken), amount, 'ipfsHash');
 
         // Perform the one-time distribution
-        distributor.distributeOneTime(address(swiseToken), amount, 'ipfsHash', '');
+        distributor.distributeOneTime(address(swiseToken), amount, 'ipfsHash');
 
         snapEnd();
 
