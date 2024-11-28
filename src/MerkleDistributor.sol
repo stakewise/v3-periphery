@@ -91,7 +91,11 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
         rewardsRoot = newRewardsRoot;
         // cannot overflow on human timescales
         lastUpdateTimestamp = uint64(block.timestamp);
-        nonce += 1;
+
+        unchecked {
+            // cannot realistically overflow
+            nonce += 1;
+        }
 
         // emit event
         emit RewardsRootUpdated(msg.sender, newRewardsRoot, newRewardsIpfsHash);

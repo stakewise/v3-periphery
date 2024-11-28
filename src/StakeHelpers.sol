@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.26;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IOsTokenConfig as IOsTokenConfigV2} from '@stakewise-core/interfaces/IOsTokenConfig.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
@@ -145,12 +144,6 @@ contract StakeHelpers is Multicall {
         if (stakeAssets < outputData.receivedAssets) {
             outputData.receivedAssets = stakeAssets;
         }
-        stakeAssets -= outputData.receivedAssets;
-
-        // if less than 1% of stake assets left, add them to received assets
-        if (Math.mulDiv(outputData.receivedAssets, 0.01 ether, 1 ether) >= stakeAssets) {
-            outputData.receivedAssets += stakeAssets;
-        }
         outputData.exitQueueShares =
             Math.min(stakeShares, IVaultState(inputData.vault).convertToShares(outputData.receivedAssets));
     }
@@ -191,12 +184,6 @@ contract StakeHelpers is Multicall {
             Math.mulDiv(_osTokenController.convertToAssets(burnOsTokenShares), _maxPercent, vaultLtvPercent);
         if (stakeAssets < receivedAssets) {
             receivedAssets = stakeAssets;
-        }
-        stakeAssets -= receivedAssets;
-
-        // if less than 1% of stake assets left, add them to received assets
-        if (Math.mulDiv(receivedAssets, 0.01 ether, 1 ether) >= stakeAssets) {
-            receivedAssets += stakeAssets;
         }
         receivedAssets += _osTokenController.convertToAssets(balanceOsTokenShares);
     }
