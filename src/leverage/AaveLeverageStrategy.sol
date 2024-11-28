@@ -3,12 +3,11 @@
 pragma solidity ^0.8.26;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
-import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {IPool} from '@aave-core/interfaces/IPool.sol';
 import {IScaledBalanceToken} from '@aave-core/interfaces/IScaledBalanceToken.sol';
 import {WadRayMath} from '@aave-core/protocol/libraries/math/WadRayMath.sol';
 import {IStrategyProxy} from '../interfaces/IStrategyProxy.sol';
-import {LeverageStrategy} from './LeverageStrategy.sol';
+import {LeverageStrategy, ILeverageStrategy} from './LeverageStrategy.sol';
 
 /**
  * @title AaveLeverageStrategy
@@ -68,8 +67,8 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
         _aaveVarDebtAssetToken = IScaledBalanceToken(aaveVarDebtAssetToken);
     }
 
-    /// @inheritdoc LeverageStrategy
-    function _getBorrowLtv() internal view override returns (uint256) {
+    /// @inheritdoc ILeverageStrategy
+    function getBorrowLtv() public view override returns (uint256) {
         // convert to 1e18 precision
         uint256 aaveLtv = uint256(_aavePool.getEModeCategoryCollateralConfig(_emodeCategory).ltv) * 1e14;
 
@@ -82,10 +81,10 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
         return Math.min(aaveLtv, abi.decode(maxBorrowLtvPercentConfig, (uint256)));
     }
 
-    /// @inheritdoc LeverageStrategy
-    function _getBorrowState(
+    /// @inheritdoc ILeverageStrategy
+    function getBorrowState(
         address proxy
-    ) internal view override returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares) {
+    ) public view override returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares) {
         suppliedOsTokenShares = _aaveOsToken.scaledBalanceOf(proxy);
         if (suppliedOsTokenShares != 0) {
             uint256 normalizedIncome = _aavePool.getReserveNormalizedIncome(address(_osToken));

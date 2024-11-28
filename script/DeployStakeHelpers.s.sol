@@ -10,15 +10,15 @@ contract DeployStakeHelpers is Script {
     struct ConfigParams {
         address keeper;
         address osTokenConfigV1;
-        address osTokenConfigV2;
-        address osTokenController;
+        address osTokenConfig;
+        address osTokenVaultController;
     }
 
     function _readEnvVariables() internal view returns (ConfigParams memory params) {
         params.keeper = vm.envAddress('KEEPER');
         params.osTokenConfigV1 = vm.envAddress('OS_TOKEN_CONFIG_V1');
-        params.osTokenConfigV2 = vm.envAddress('OS_TOKEN_CONFIG_V2');
-        params.osTokenController = vm.envAddress('OS_TOKEN_CONTROLLER');
+        params.osTokenConfig = vm.envAddress('OS_TOKEN_CONFIG');
+        params.osTokenVaultController = vm.envAddress('OS_TOKEN_VAULT_CONTROLLER');
     }
 
     function run() external {
@@ -31,7 +31,7 @@ contract DeployStakeHelpers is Script {
 
         // Deploy StakeHelpers.
         StakeHelpers stakeHelpers =
-            new StakeHelpers(params.keeper, params.osTokenConfigV1, params.osTokenConfigV2, params.osTokenController);
+            new StakeHelpers(params.keeper, params.osTokenConfigV1, params.osTokenConfig, params.osTokenVaultController);
         console.log('StakeHelpers deployed at: ', address(stakeHelpers));
 
         vm.stopBroadcast();

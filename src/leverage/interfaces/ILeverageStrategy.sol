@@ -62,8 +62,15 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param user The address of the user
      * @param osTokenShares Amount of osToken shares to deposit
      * @param leverageOsTokenShares Amount of osToken shares leveraged
+     * @param referrer The address of the referrer
      */
-    event Deposited(address indexed vault, address indexed user, uint256 osTokenShares, uint256 leverageOsTokenShares);
+    event Deposited(
+        address indexed vault,
+        address indexed user,
+        uint256 osTokenShares,
+        uint256 leverageOsTokenShares,
+        address referrer
+    );
 
     /**
      * @notice Enter the OsToken escrow exit queue
@@ -125,6 +132,51 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     function getStrategyProxy(address vault, address user) external view returns (address proxy);
 
     /**
+     * @notice Returns the vault LTV.
+     * @param vault The address of the vault
+     * @return The vault LTV
+     */
+    function getVaultLtv(
+        address vault
+    ) external view returns (uint256);
+
+    /**
+     * @notice Returns the borrow LTV.
+     * @return The borrow LTV
+     */
+    function getBorrowLtv() external view returns (uint256);
+
+    /**
+     * @notice Returns the borrow position state for the proxy
+     * @param proxy The address of the strategy proxy
+     * @return borrowedAssets The amount of borrowed assets
+     * @return suppliedOsTokenShares The amount of supplied osToken shares
+     */
+    function getBorrowState(
+        address proxy
+    ) external view returns (uint256 borrowedAssets, uint256 suppliedOsTokenShares);
+
+    /**
+     * @notice Returns the vault position state for the proxy
+     * @param vault The address of the vault
+     * @param proxy The address of the strategy proxy
+     * @return stakedAssets The amount of staked assets
+     * @return mintedOsTokenShares The amount of minted osToken shares
+     */
+    function getVaultState(
+        address vault,
+        address proxy
+    ) external view returns (uint256 stakedAssets, uint256 mintedOsTokenShares);
+
+    /**
+     * @dev Checks whether the user can be forced to the exit queue
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @return True if the user can be forced to the exit queue, otherwise false
+     */
+    function canForceEnterExitQueue(address vault, address user) external view returns (bool);
+
+    /**
      * @notice Checks if the proxy is exiting
      * @param proxy The address of the proxy
      * @return isExiting True if the proxy is exiting
@@ -132,6 +184,14 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     function isStrategyProxyExiting(
         address proxy
     ) external view returns (bool isExiting);
+
+    /**
+     * @notice Calculates the amount of osToken shares to flashloan
+     * @param vault The address of the vault
+     * @param osTokenShares The amount of osToken shares at hand
+     * @return The amount of osToken shares to flashloan
+     */
+    function getFlashloanOsTokenShares(address vault, uint256 osTokenShares) external view returns (uint256);
 
     /**
      * @notice Updates the vault state
@@ -155,8 +215,9 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @notice Deposit assets to the strategy
      * @param vault The address of the vault
      * @param osTokenShares Amount of osToken shares to deposit
+     * @param referrer The address of the referrer
      */
-    function deposit(address vault, uint256 osTokenShares) external;
+    function deposit(address vault, uint256 osTokenShares, address referrer) external;
 
     /**
      * @notice Enter the OsToken escrow exit queue. Can only be called by the position owner.

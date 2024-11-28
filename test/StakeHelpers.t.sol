@@ -1,14 +1,12 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 
 pragma solidity ^0.8.22;
 
 import {IKeeperRewards} from '@stakewise-core/interfaces/IKeeperRewards.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
 import {IEthVault} from '@stakewise-core/interfaces/IEthVault.sol';
-import {Test, console} from 'forge-std/Test.sol';
-import {Vm} from 'forge-std/Vm.sol';
+import {Test} from 'forge-std/Test.sol';
 import {StakeHelpers} from '../src/StakeHelpers.sol';
-import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 
 contract StakeHelpersTest is Test {
     uint256 constant forkBlockNumber = 20_928_188;

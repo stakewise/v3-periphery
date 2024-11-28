@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: AGPL-3.0-only
 
 pragma solidity ^0.8.26;
 
@@ -352,7 +352,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
 
         // deposit to strategy
         vm.prank(signer);
-        strategy.deposit(vault, osTokenShares1);
+        strategy.deposit(vault, osTokenShares1, address(0));
     }
 
     function test_receiveFlashLoan_InvalidCaller() public {
@@ -365,22 +365,22 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         vm.expectRevert(
             abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, strategyProxy, 0, osTokenShares)
         );
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
     }
 
     function test_deposit_ZeroShares() public {
         vm.expectRevert(Errors.InvalidShares.selector);
-        strategy.deposit(vault, 0);
+        strategy.deposit(vault, 0, address(0));
     }
 
     function test_deposit_ExitingProxy() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares / 2);
+        strategy.deposit(vault, osTokenShares / 2, address(0));
         strategy.enterExitQueue(vault, 1 ether);
 
         vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
-        strategy.deposit(vault, osTokenShares / 2);
+        strategy.deposit(vault, osTokenShares / 2, address(0));
     }
 
     function test_deposit_NoPosition() public {
@@ -388,10 +388,10 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         IERC20(osToken).approve(strategyProxy, osTokenShares);
 
         vm.expectEmit(true, true, false, false);
-        emit ILeverageStrategy.Deposited(vault, address(this), osTokenShares, 0);
+        emit ILeverageStrategy.Deposited(vault, address(this), osTokenShares, 0, address(0));
 
         snapStart('EthAaveLeverageStrategyTest_test_deposit_NoPosition');
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
         snapEnd();
 
         State memory state = _getState();
@@ -408,7 +408,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_deposit_HasPosition() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         State memory state1 = _getState();
         int256 reward = SafeCast.toInt256(IEthVault(vault).totalAssets() * 0.03 ether / 1 ether / 12);
@@ -438,9 +438,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         IERC20(osToken).approve(strategyProxy, type(uint256).max);
 
         vm.expectEmit(true, true, false, false);
-        emit ILeverageStrategy.Deposited(vault, address(this), newOsTokenShares, 0);
+        emit ILeverageStrategy.Deposited(vault, address(this), newOsTokenShares, 0, address(0));
         snapStart('EthAaveLeverageStrategyTest_test_deposit_HasPosition');
-        strategy.deposit(vault, newOsTokenShares);
+        strategy.deposit(vault, newOsTokenShares, address(0));
         snapEnd();
 
         State memory state3 = _getState();
@@ -459,7 +459,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_enterExitQueue_InvalidPositionPercent() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         vm.expectRevert(ILeverageStrategy.InvalidExitQueuePercent.selector);
         strategy.enterExitQueue(vault, 0);
@@ -471,7 +471,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_enterExitQueue_ExitingProxy() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
         strategy.enterExitQueue(vault, 0.5 ether);
 
         vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
@@ -486,7 +486,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_enterExitQueue() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         vm.warp(vm.getBlockTimestamp() + 30 days);
         uint256 avgRewardPerSecond = IOsTokenVaultController(osTokenVaultController).avgRewardPerSecond();
@@ -504,7 +504,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_forceEnterExitQueue_NoForceExitConfig() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         vm.prank(address(1));
         vm.expectRevert(Errors.AccessDenied.selector);
@@ -514,7 +514,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_forceEnterExitQueue_ForceExitConfigChecksNotPassed() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         StrategiesRegistry(strategiesRegistry).setStrategyConfig(
             strategy.strategyId(), 'vaultForceExitLtvPercent', abi.encode(0.918 ether)
@@ -531,7 +531,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_forceEnterExitQueue_vaultForceExitLtvPercent() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         StrategiesRegistry(strategiesRegistry).setStrategyConfig(
             strategy.strategyId(), 'vaultForceExitLtvPercent', abi.encode(0.899 ether)
@@ -548,7 +548,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_forceEnterExitQueue_borrowForceExitLtvPercent() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         StrategiesRegistry(strategiesRegistry).setStrategyConfig(
             strategy.strategyId(), 'borrowForceExitLtvPercent', abi.encode(0.929 ether)
@@ -573,7 +573,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         // deposit
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
         strategy.enterExitQueue(vault, 1 ether);
 
         vm.expectRevert(ILeverageStrategy.InvalidExitQueueTicket.selector);
@@ -587,7 +587,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         // deposit
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
         State memory state1 = _getState();
 
         // earn some rewards
@@ -707,7 +707,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         // deposit
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
         strategy.enterExitQueue(vault, 1 ether);
         ILeverageStrategy.ExitPosition memory exitPosition =
             ILeverageStrategy.ExitPosition({positionTicket: 100, timestamp: 0, exitQueueIndex: 0});
@@ -719,7 +719,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         // deposit
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
         uint256 positionTicket = strategy.enterExitQueue(vault, 1 ether);
 
         vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
@@ -735,7 +735,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         // deposit
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
         uint256 positionTicket = strategy.enterExitQueue(vault, 1 ether);
         uint256 timestamp = vm.getBlockTimestamp();
 
@@ -760,7 +760,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         // deposit
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
         uint256 positionTicket = strategy.enterExitQueue(vault, 1 ether);
         uint256 timestamp = vm.getBlockTimestamp();
 
@@ -835,7 +835,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         // deposit
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         State memory state = _getState();
         vm.expectRevert(ILeverageStrategy.InvalidBalancerPoolId.selector);
@@ -846,7 +846,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         // deposit
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         IStrategiesRegistry(strategiesRegistry).setStrategyConfig(
             strategy.strategyId(), 'balancerPoolId', abi.encode(balancerPoolId)
@@ -884,7 +884,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         // deposit
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
         strategy.enterExitQueue(vault, 1 ether);
 
         vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
@@ -899,7 +899,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_upgradeProxy_NoVaultUpgradeConfig() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         vm.expectRevert(Errors.UpgradeFailed.selector);
         strategy.upgradeProxy(vault);
@@ -908,7 +908,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_upgradeProxy_VaultUpgradeConfigZeroAddress() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         IStrategiesRegistry(strategiesRegistry).setStrategyConfig(
             strategy.strategyId(), 'upgradeV1', abi.encode(address(0))
@@ -921,7 +921,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_upgradeProxy_VaultUpgradeConfigSameAddress() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         IStrategiesRegistry(strategiesRegistry).setStrategyConfig(
             strategy.strategyId(), 'upgradeV1', abi.encode(address(strategy))
@@ -934,7 +934,7 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
     function test_upgradeProxy() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
 
         address newStrategy = address(1);
         IStrategiesRegistry(strategiesRegistry).setStrategyConfig(
