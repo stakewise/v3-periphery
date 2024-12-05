@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 
 import {Script} from 'forge-std/Script.sol';
 import {console} from 'forge-std/console.sol';
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {MerkleDistributor} from '../src/MerkleDistributor.sol';
 
 contract DeployMerkleDistributor is Script {
@@ -31,12 +31,8 @@ contract DeployMerkleDistributor is Script {
         ConfigParams memory params = _readEnvVariables();
 
         // Deploy MerkleDistributor
-        MerkleDistributor merkleDistributor = new MerkleDistributor(
-            params.keeper,
-            params.governor,
-            params.rewardsDelay,
-            params.rewardsMinOracles
-        );
+        MerkleDistributor merkleDistributor =
+            new MerkleDistributor(params.keeper, params.governor, params.rewardsDelay, params.rewardsMinOracles);
         console.log('MerkleDistributor deployed at: ', address(merkleDistributor));
 
         vm.stopBroadcast();
