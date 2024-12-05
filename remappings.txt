@@ -1,4 +1,5 @@
 @openzeppelin/contracts-upgradeable=lib/openzeppelin-contracts-upgradeable/contracts/
 @openzeppelin/contracts=lib/openzeppelin-contracts/contracts/
+@openzeppelin/foundry-upgrades=lib/openzeppelin-foundry-upgrades/src/
 @stakewise-core/=lib/v3-core/contracts/
 @aave-core/=lib/aave-v3-origin/src/contracts/

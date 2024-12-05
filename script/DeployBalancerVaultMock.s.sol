@@ -1,10 +1,10 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: AGPL-3.0-only
 
 pragma solidity ^0.8.26;
 
-import {Script} from '../lib/forge-std/src/Script.sol';
-import {console} from '../lib/forge-std/src/console.sol';
-import {Upgrades, Options} from 'openzeppelin-foundry-upgrades/Upgrades.sol';
+import {Script} from 'forge-std/Script.sol';
+import {console} from 'forge-std/console.sol';
+import {Upgrades, Options} from '@openzeppelin/foundry-upgrades/Upgrades.sol';
 import {BalancerVaultMock} from '../src/mocks/BalancerVaultMock.sol';
 
 contract DeployBalancerVaultMock is Script {
