@@ -5,10 +5,10 @@ pragma solidity ^0.8.26;
 import {Script} from 'forge-std/Script.sol';
 import {console} from 'forge-std/console.sol';
 import {StrategiesRegistry} from '../src/StrategiesRegistry.sol';
-import {EthAaveLeverageStrategy} from '../src/leverage/EthAaveLeverageStrategy.sol';
+import {GnoAaveLeverageStrategy} from '../src/leverage/GnoAaveLeverageStrategy.sol';
 import {StrategyProxy} from '../src/StrategyProxy.sol';
 
-contract DeployEthAaveLeverageStrategy is Script {
+contract DeployGnoAaveLeverageStrategy is Script {
     struct ConfigParams {
         address osToken;
         address assetToken;
@@ -66,8 +66,8 @@ contract DeployEthAaveLeverageStrategy is Script {
         StrategyProxy strategyProxyImpl = new StrategyProxy();
         console.log('StrategyProxy implementation deployed at: ', address(strategyProxyImpl));
 
-        // Deploy EthAaveLeverageStrategy.
-        EthAaveLeverageStrategy strategy = new EthAaveLeverageStrategy(
+        // Deploy GnoAaveLeverageStrategy.
+        GnoAaveLeverageStrategy strategy = new GnoAaveLeverageStrategy(
             params.osToken,
             params.assetToken,
             params.osTokenVaultController,
@@ -81,7 +81,7 @@ contract DeployEthAaveLeverageStrategy is Script {
             params.aaveOsToken,
             params.aaveVarDebtAssetToken
         );
-        console.log('EthAaveLeverageStrategy deployed at: ', address(strategy));
+        console.log('GnoAaveLeverageStrategy deployed at: ', address(strategy));
 
         strategiesRegistry.setStrategy(address(strategy), true);
         strategiesRegistry.setStrategyConfig(
