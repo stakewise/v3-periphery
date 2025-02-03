@@ -1,6 +1,6 @@
 {
   "MerkleDistributorTest_test_claim": "146428",
-  "MerkleDistributorTest_test_constructor": "1410683",
+  "MerkleDistributorTest_test_constructor": "1410695",
   "MerkleDistributorTest_test_distributeOneTime": "74966",
   "MerkleDistributorTest_test_distributePeriodically": "73090",
   "MerkleDistributorTest_test_setRewardsDelay": "30905",
