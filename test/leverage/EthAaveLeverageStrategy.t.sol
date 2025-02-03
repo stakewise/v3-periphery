@@ -3,17 +3,12 @@
 pragma solidity ^0.8.26;
 
 import {Test} from 'forge-std/Test.sol';
-import {GasSnapshot} from 'forge-gas-snapshot/GasSnapshot.sol';
 import {IERC20Errors} from '@openzeppelin/contracts/interfaces/draft-IERC6093.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC20Permit} from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol';
-import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
-import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
-import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {IPriceOracle} from '@aave-core/interfaces/IPriceOracle.sol';
 import {IPool} from '@aave-core/interfaces/IPool.sol';
 import {IScaledBalanceToken} from '@aave-core/interfaces/IScaledBalanceToken.sol';
 import {WadRayMath} from '@aave-core/protocol/libraries/math/WadRayMath.sol';
@@ -38,7 +33,7 @@ import {EthAaveLeverageStrategy} from '../../src/leverage/EthAaveLeverageStrateg
 import {OsTokenVaultEscrowAuth} from '../../src/OsTokenVaultEscrowAuth.sol';
 import {StrategyProxy} from '../../src/StrategyProxy.sol';
 
-contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
+contract EthAaveLeverageStrategyTest is Test {
     uint256 public constant forkBlockNumber = 20_928_188;
 
     uint64 public constant liqThresholdPercent = 0.999 ether;
@@ -345,9 +340,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, digest);
         vm.prank(signer);
-        snapStart('EthAaveLeverageStrategyTest_test_permit');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_permit');
         strategy.permit(vault, osTokenShares1, deadline, v, r, s);
-        snapEnd();
+        vm.stopSnapshotGas();
         vm.assertEq(IERC20(osToken).allowance(signer, strategyProxy), osTokenShares1);
 
         // deposit to strategy
@@ -390,9 +385,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.Deposited(vault, address(this), osTokenShares, 0, address(0));
 
-        snapStart('EthAaveLeverageStrategyTest_test_deposit_NoPosition');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_deposit_NoPosition');
         strategy.deposit(vault, osTokenShares, address(0));
-        snapEnd();
+        vm.stopSnapshotGas();
 
         State memory state = _getState();
         vm.assertApproxEqAbs(state.borrowedAssets, state.vaultAssets, 1, 'borrowedAssets != vaultAssets');
@@ -439,9 +434,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
 
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.Deposited(vault, address(this), newOsTokenShares, 0, address(0));
-        snapStart('EthAaveLeverageStrategyTest_test_deposit_HasPosition');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_deposit_HasPosition');
         strategy.deposit(vault, newOsTokenShares, address(0));
-        snapEnd();
+        vm.stopSnapshotGas();
 
         State memory state3 = _getState();
         vm.assertGt(state3.borrowedAssets, state2.borrowedAssets, 'borrowedAssets2 >= borrowedAssets3');
@@ -496,9 +491,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
 
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.ExitQueueEntered(vault, address(this), 0, vm.getBlockTimestamp(), 0, 0.5 ether);
-        snapStart('EthAaveLeverageStrategyTest_test_enterExitQueue');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_enterExitQueue');
         strategy.enterExitQueue(vault, 0.5 ether);
-        snapEnd();
+        vm.stopSnapshotGas();
     }
 
     function test_forceEnterExitQueue_NoForceExitConfig() public {
@@ -540,9 +535,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         vm.prank(address(1));
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.ExitQueueEntered(vault, address(this), 0, vm.getBlockTimestamp(), 0, 1 ether);
-        snapStart('EthAaveLeverageStrategyTest_test_forceEnterExitQueue_vaultForceExitLtvPercent');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_forceEnterExitQueue_vaultForceExitLtvPercent');
         strategy.forceEnterExitQueue(vault, address(this));
-        snapEnd();
+        vm.stopSnapshotGas();
     }
 
     function test_forceEnterExitQueue_borrowForceExitLtvPercent() public {
@@ -557,9 +552,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         vm.prank(address(1));
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.ExitQueueEntered(vault, address(this), 0, vm.getBlockTimestamp(), 0, 1 ether);
-        snapStart('EthAaveLeverageStrategyTest_test_forceEnterExitQueue_borrowForceExitLtvPercent');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_forceEnterExitQueue_borrowForceExitLtvPercent');
         strategy.forceEnterExitQueue(vault, address(this));
-        snapEnd();
+        vm.stopSnapshotGas();
     }
 
     function test_claimExitedAssets_NoExitPosition() public {
@@ -630,9 +625,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         uint256 assetsBefore = address(this).balance;
 
         // claim exited assets
-        snapStart('EthAaveLeverageStrategyTest_test_claimExitedAssets1');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_claimExitedAssets1');
         strategy.claimExitedAssets(vault, address(this), exitPosition);
-        snapEnd();
+        vm.stopSnapshotGas();
 
         // enter exit queue for 2/4 position
         positionTicket = strategy.enterExitQueue(vault, 0.5 ether);
@@ -650,9 +645,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
             exitQueueIndex: SafeCast.toUint256(IEthVault(vault).getExitQueueIndex(positionTicket))
         });
 
-        snapStart('EthAaveLeverageStrategyTest_test_claimExitedAssets2');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_claimExitedAssets2');
         strategy.claimExitedAssets(vault, address(this), exitPosition);
-        snapEnd();
+        vm.stopSnapshotGas();
 
         // fails calling again
         vm.expectRevert(ILeverageStrategy.ExitQueueNotEntered.selector);
@@ -676,9 +671,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
         });
 
         // claim exited assets
-        snapStart('EthAaveLeverageStrategyTest_test_claimExitedAssets3');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_claimExitedAssets3');
         strategy.claimExitedAssets(vault, address(this), exitPosition);
-        snapEnd();
+        vm.stopSnapshotGas();
         State memory state = _getState();
         vm.assertEq(state.borrowedAssets, 0, 'borrowedAssets != 0');
         vm.assertEq(state.suppliedOsTokenShares, 0, 'suppliedOsTokenShares != 0');
@@ -799,9 +794,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
 
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.VaultAssetsRescued(vault, address(this), 0, 0);
-        snapStart('EthAaveLeverageStrategyTest_test_rescueVaultAssets');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_rescueVaultAssets');
         strategy.rescueVaultAssets(vault, exitPosition);
-        snapEnd();
+        vm.stopSnapshotGas();
 
         uint256 assetsAfter = address(this).balance;
         uint256 osTokenSharesAfter = IERC20(osToken).balanceOf(address(this));
@@ -857,15 +852,15 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
 
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.LendingAssetsRescued(vault, address(this), 0, 0);
-        snapStart('EthAaveLeverageStrategyTest_test_rescueLendingAssets1');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_rescueLendingAssets1');
         strategy.rescueLendingAssets(vault, _getState().borrowedAssets / 2, 0.01 ether);
-        snapEnd();
+        vm.stopSnapshotGas();
 
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.LendingAssetsRescued(vault, address(this), 0, 0);
-        snapStart('EthAaveLeverageStrategyTest_test_rescueLendingAssets2');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_rescueLendingAssets2');
         strategy.rescueLendingAssets(vault, _getState().borrowedAssets, 0.01 ether);
-        snapEnd();
+        vm.stopSnapshotGas();
 
         uint256 assetsAfter = address(this).balance;
         uint256 osTokenSharesAfter = IERC20(osToken).balanceOf(address(this));
@@ -943,9 +938,9 @@ contract EthAaveLeverageStrategyTest is Test, GasSnapshot {
 
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.StrategyProxyUpgraded(vault, address(this), newStrategy);
-        snapStart('EthAaveLeverageStrategyTest_test_upgradeProxy');
+        vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_upgradeProxy');
         strategy.upgradeProxy(vault);
-        snapEnd();
+        vm.stopSnapshotGas();
         vm.assertEq(StrategyProxy(payable(strategyProxy)).owner(), newStrategy);
     }
 

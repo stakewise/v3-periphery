@@ -135,11 +135,16 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
     }
 
     /// @inheritdoc IMerkleDistributor
-    function distributeOneTime(address token, uint256 amount, string calldata rewardsIpfsHash) external onlyOwner {
+    function distributeOneTime(
+        address token,
+        uint256 amount,
+        string calldata rewardsIpfsHash,
+        bytes calldata extraData
+    ) external onlyOwner {
         if (amount == 0) revert InvalidAmount();
 
         SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);
-        emit OneTimeDistributionAdded(msg.sender, token, amount, rewardsIpfsHash);
+        emit OneTimeDistributionAdded(msg.sender, token, amount, rewardsIpfsHash, extraData);
     }
 
     /// @inheritdoc IMerkleDistributor

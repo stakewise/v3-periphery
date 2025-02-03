@@ -3,7 +3,6 @@
 pragma solidity ^0.8.26;
 
 import {Test} from 'forge-std/Test.sol';
-import {GasSnapshot} from 'forge-gas-snapshot/GasSnapshot.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
@@ -13,7 +12,7 @@ import {Errors} from '@stakewise-core/libraries/Errors.sol';
 import {MerkleDistributor} from '../src/MerkleDistributor.sol';
 import {IMerkleDistributor} from '../src/interfaces/IMerkleDistributor.sol';
 
-contract MerkleDistributorTest is Test, GasSnapshot {
+contract MerkleDistributorTest is Test {
     uint256 public constant forkBlockNumber = 21_264_254;
 
     MerkleDistributor public distributor;
@@ -32,9 +31,9 @@ contract MerkleDistributorTest is Test, GasSnapshot {
     }
 
     function test_constructor() public {
-        snapStart('MerkleDistributorTest_test_constructor');
+        vm.startSnapshotGas('MerkleDistributorTest_test_constructor');
         MerkleDistributor distributor2 = new MerkleDistributor(address(keeper), owner, 1 days, 2);
-        snapEnd();
+        vm.stopSnapshotGas();
         assertEq(distributor2.rewardsDelay(), 1 days, 'Should correctly set rewardsDelay');
         assertEq(distributor2.rewardsMinOracles(), 2, 'Should correctly set rewardsMinOracles');
         assertEq(distributor2.owner(), owner, 'Should correctly set owner');
@@ -60,9 +59,9 @@ contract MerkleDistributorTest is Test, GasSnapshot {
         vm.startPrank(owner);
         vm.expectEmit(true, false, false, true);
         emit IMerkleDistributor.RewardsMinOraclesUpdated(owner, 1);
-        snapStart('MerkleDistributorTest_test_setRewardsMinOracles');
+        vm.startSnapshotGas('MerkleDistributorTest_test_setRewardsMinOracles');
         distributor.setRewardsMinOracles(1);
-        snapEnd();
+        vm.stopSnapshotGas();
         vm.stopPrank();
 
         assertEq(distributor.rewardsMinOracles(), 1, 'Should correctly update rewardsMinOracles');
@@ -78,9 +77,9 @@ contract MerkleDistributorTest is Test, GasSnapshot {
         vm.startPrank(owner);
         vm.expectEmit(true, false, false, true);
         emit IMerkleDistributor.RewardsDelayUpdated(owner, newDelay);
-        snapStart('MerkleDistributorTest_test_setRewardsDelay');
+        vm.startSnapshotGas('MerkleDistributorTest_test_setRewardsDelay');
         distributor.setRewardsDelay(newDelay);
-        snapEnd();
+        vm.stopSnapshotGas();
         vm.stopPrank();
 
         assertEq(distributor.rewardsDelay(), newDelay, 'Should correctly update rewardsDelay');
@@ -102,11 +101,11 @@ contract MerkleDistributorTest is Test, GasSnapshot {
         vm.expectRevert(abi.encodeWithSelector(IMerkleDistributor.InvalidDuration.selector));
         distributor.distributePeriodically(address(swiseToken), amount, 3600, 0, '');
 
-        snapStart('MerkleDistributorTest_test_distributePeriodically');
+        vm.startSnapshotGas('MerkleDistributorTest_test_distributePeriodically');
         vm.expectEmit(true, true, false, true);
         emit IMerkleDistributor.PeriodicDistributionAdded(owner, address(swiseToken), amount, 3600, 86_400, '');
         distributor.distributePeriodically(address(swiseToken), amount, 3600, 86_400, '');
-        snapEnd();
+        vm.stopSnapshotGas();
         vm.stopPrank();
 
         assertEq(swiseToken.balanceOf(address(distributor)), amount, 'Tokens should be transferred to distributor');
@@ -117,7 +116,7 @@ contract MerkleDistributorTest is Test, GasSnapshot {
 
         // Ensure unauthorized accounts cannot call the function
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
-        distributor.distributeOneTime(address(swiseToken), amount, 'ipfsHash');
+        distributor.distributeOneTime(address(swiseToken), amount, 'ipfsHash', 'extraData');
 
         // Impersonate the owner to approve SWISE and distribute tokens
         vm.startPrank(owner);
@@ -126,18 +125,18 @@ contract MerkleDistributorTest is Test, GasSnapshot {
 
         // Test invalid amount (zero)
         vm.expectRevert(abi.encodeWithSelector(IMerkleDistributor.InvalidAmount.selector));
-        distributor.distributeOneTime(address(swiseToken), 0, 'ipfsHash');
+        distributor.distributeOneTime(address(swiseToken), 0, 'ipfsHash', 'extraData');
 
-        snapStart('MerkleDistributorTest_test_distributeOneTime');
+        vm.startSnapshotGas('MerkleDistributorTest_test_distributeOneTime');
 
         // Expect the correct event to be emitted
         vm.expectEmit(true, true, false, true);
-        emit IMerkleDistributor.OneTimeDistributionAdded(owner, address(swiseToken), amount, 'ipfsHash');
+        emit IMerkleDistributor.OneTimeDistributionAdded(owner, address(swiseToken), amount, 'ipfsHash', 'extraData');
 
         // Perform the one-time distribution
-        distributor.distributeOneTime(address(swiseToken), amount, 'ipfsHash');
+        distributor.distributeOneTime(address(swiseToken), amount, 'ipfsHash', 'extraData');
 
-        snapEnd();
+        vm.stopSnapshotGas();
 
         vm.stopPrank();
 
@@ -193,7 +192,7 @@ contract MerkleDistributorTest is Test, GasSnapshot {
         signatures = _sign(oraclePrivateKey, newRewardsRoot, newIpfsHash, nonceBefore);
 
         // Start snapshot for state and events
-        snapStart('MerkleDistributorTest_test_setRewardsRoot');
+        vm.startSnapshotGas('MerkleDistributorTest_test_setRewardsRoot');
 
         // Expect the correct event to be emitted
         vm.expectEmit(true, true, false, true);
@@ -203,7 +202,7 @@ contract MerkleDistributorTest is Test, GasSnapshot {
         distributor.setRewardsRoot(newRewardsRoot, newIpfsHash, signatures);
 
         // End snapshot
-        snapEnd();
+        vm.stopSnapshotGas();
 
         // Stop impersonation
         vm.stopPrank();
@@ -268,13 +267,13 @@ contract MerkleDistributorTest is Test, GasSnapshot {
         emit IMerkleDistributor.RewardsClaimed(address(this), user, tokens, cumulativeAmounts);
 
         // Start snapshot for state and events
-        snapStart('MerkleDistributorTest_test_claim');
+        vm.startSnapshotGas('MerkleDistributorTest_test_claim');
 
         // Successful claim
         distributor.claim(user, tokens, cumulativeAmounts, merkleProof);
 
         // End snapshot
-        snapEnd();
+        vm.stopSnapshotGas();
 
         assertEq(swiseToken.balanceOf(user), swiseAmount);
         assertEq(daiToken.balanceOf(user), daiAmount);

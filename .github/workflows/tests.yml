@@ -16,13 +16,13 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: nightly
+          version: stable
 
       - name: Build
         run: forge build
 
       - name: Run tests
-        run: forge test --isolate -vvv
+        run: forge snapshot --isolate -vvv
         env:
           FORGE_SNAPSHOT_CHECK: true
           MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}

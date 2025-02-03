@@ -3,12 +3,11 @@
 pragma solidity ^0.8.26;
 
 import {Test} from 'forge-std/Test.sol';
-import {GasSnapshot} from 'forge-gas-snapshot/GasSnapshot.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Errors} from '@stakewise-core/libraries/Errors.sol';
 import {IStrategiesRegistry, StrategiesRegistry} from '../src/StrategiesRegistry.sol';
 
-contract StrategiesRegistryTest is Test, GasSnapshot {
+contract StrategiesRegistryTest is Test {
     StrategiesRegistry public registry;
     address public owner = address(0x123);
     address public strategy = address(0x456);
@@ -47,9 +46,9 @@ contract StrategiesRegistryTest is Test, GasSnapshot {
         // Set a new strategy and verify it's enabled
         vm.expectEmit(true, false, false, true);
         emit IStrategiesRegistry.StrategyUpdated(owner, strategy, true);
-        snapStart('StrategiesRegistryTest_test_setStrategy');
+        vm.startSnapshotGas('StrategiesRegistryTest_test_setStrategy');
         registry.setStrategy(strategy, true);
-        snapEnd();
+        vm.stopSnapshotGas();
         assertEq(registry.strategies(strategy), true);
 
         // Try setting it again with the same status, expect revert
@@ -87,9 +86,9 @@ contract StrategiesRegistryTest is Test, GasSnapshot {
         // add proxy
         vm.expectEmit(true, true, true, false);
         emit IStrategiesRegistry.StrategyProxyAdded(strategy, proxyId, proxy);
-        snapStart('StrategiesRegistryTest_test_addStrategyProxy');
+        vm.startSnapshotGas('StrategiesRegistryTest_test_addStrategyProxy');
         registry.addStrategyProxy(proxyId, proxy);
-        snapEnd();
+        vm.stopSnapshotGas();
         assertEq(registry.strategyProxies(proxy), true);
         assertEq(registry.strategyProxyIdToProxy(proxyId), proxy);
 
@@ -111,9 +110,9 @@ contract StrategiesRegistryTest is Test, GasSnapshot {
         vm.startPrank(owner);
         vm.expectEmit(true, false, false, true);
         emit IStrategiesRegistry.StrategyConfigUpdated(strategyId, configName, configValue);
-        snapStart('StrategiesRegistryTest_test_setStrategyConfig');
+        vm.startSnapshotGas('StrategiesRegistryTest_test_setStrategyConfig');
         registry.setStrategyConfig(strategyId, configName, configValue);
-        snapEnd();
+        vm.stopSnapshotGas();
         vm.stopPrank();
     }
 }
