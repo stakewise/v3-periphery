@@ -3,34 +3,19 @@
 pragma solidity ^0.8.26;
 
 import {Test} from 'forge-std/Test.sol';
-import {GasSnapshot} from 'forge-gas-snapshot/GasSnapshot.sol';
-import {IERC20Errors} from '@openzeppelin/contracts/interfaces/draft-IERC6093.sol';
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {IERC20Permit} from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol';
-import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
-import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
 import {IValidatorsRegistry} from '@stakewise-core/interfaces/IValidatorsRegistry.sol';
-import {OsToken, IOsToken} from '@stakewise-core/tokens/OsToken.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
 import {IKeeperValidators} from '@stakewise-core/interfaces/IKeeperValidators.sol';
 import {IKeeperRewards} from '@stakewise-core/interfaces/IKeeperRewards.sol';
-import {IOsTokenConfig} from '@stakewise-core/interfaces/IOsTokenConfig.sol';
-import {IOsTokenVaultEscrow} from '@stakewise-core/interfaces/IOsTokenVaultEscrow.sol';
-import {EthOsTokenVaultEscrow} from '@stakewise-core/tokens/EthOsTokenVaultEscrow.sol';
-import {OsTokenConfig} from '@stakewise-core/tokens/OsTokenConfig.sol';
-import {OsTokenFlashLoans} from '@stakewise-core/tokens/OsTokenFlashLoans.sol';
 import {VaultsRegistry, IVaultsRegistry} from '@stakewise-core/vaults/VaultsRegistry.sol';
 import {EthVaultFactory, IEthVaultFactory} from '@stakewise-core/vaults/ethereum/EthVaultFactory.sol';
 import {EthVault, IEthVault} from '@stakewise-core/vaults/ethereum/EthVault.sol';
 import {Keeper} from '@stakewise-core/keeper/Keeper.sol';
-import {Errors} from '@stakewise-core/libraries/Errors.sol';
 import {IVaultUserLtvTracker, VaultUserLtvTracker} from '../src/VaultUserLtvTracker.sol';
 
-import {console} from 'forge-std/console.sol';
-
-contract VaultUserLtvTrackerTest is Test, GasSnapshot {
+contract VaultUserLtvTrackerTest is Test {
     uint256 public constant forkBlockNumber = 20_928_188;
 
     uint256 public constant exitingAssetsClaimDelay = 24 hours;
