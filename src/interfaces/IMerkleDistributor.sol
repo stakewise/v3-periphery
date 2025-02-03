@@ -58,9 +58,10 @@ interface IMerkleDistributor {
      * @param token The address of the token
      * @param amount The amount of tokens to distribute
      * @param rewardsIpfsHash The IPFS hash of the rewards
+     * @param extraData The extra data for the distribution
      */
     event OneTimeDistributionAdded(
-        address indexed caller, address indexed token, uint256 amount, string rewardsIpfsHash
+        address indexed caller, address indexed token, uint256 amount, string rewardsIpfsHash, bytes extraData
     );
 
     /**
@@ -166,8 +167,14 @@ interface IMerkleDistributor {
      * @param token The address of the token
      * @param amount The amount of tokens to distribute
      * @param rewardsIpfsHash The IPFS hash of the rewards
+     * @param extraData The extra data for the distribution
      */
-    function distributeOneTime(address token, uint256 amount, string calldata rewardsIpfsHash) external;
+    function distributeOneTime(
+        address token,
+        uint256 amount,
+        string calldata rewardsIpfsHash,
+        bytes calldata extraData
+    ) external;
 
     /**
      * @notice Claim the tokens for a user
