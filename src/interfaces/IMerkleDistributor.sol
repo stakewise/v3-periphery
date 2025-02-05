@@ -11,6 +11,7 @@ interface IMerkleDistributor {
     error InvalidTokens();
     error InvalidAmount();
     error InvalidDuration();
+    error DistributorUnauthorizedAccount(address account);
 
     /**
      * @notice Emitted when the rewards root is updated
@@ -66,6 +67,7 @@ interface IMerkleDistributor {
 
     /**
      * @notice Emitted when the rewards are claimed
+     * @param caller The address of the caller
      * @param account The address of the account
      * @param tokens The list of tokens
      * @param cumulativeAmounts The cumulative amounts of tokens
@@ -73,6 +75,26 @@ interface IMerkleDistributor {
     event RewardsClaimed(
         address indexed caller, address indexed account, address[] tokens, uint256[] cumulativeAmounts
     );
+
+    /**
+     * @notice Emitted when a distributor is added
+     * @param caller The address of the caller
+     * @param distributor The address of the distributor
+     */
+    event DistributorAdded(address indexed caller, address indexed distributor);
+
+    /**
+     * @notice Emitted when a distributor is removed
+     * @param caller The address of the caller
+     * @param distributor The address of the distributor
+     */
+    event DistributorRemoved(address indexed caller, address indexed distributor);
+
+    function isDistributor(
+        address account
+    ) external view returns (bool);
+
+    function distributors() external view returns (address[] memory);
 
     /**
      * @notice Get the current rewards Merkle Tree root
@@ -144,6 +166,20 @@ interface IMerkleDistributor {
      */
     function setRewardsMinOracles(
         uint64 newRewardsMinOracles
+    ) external;
+
+    /**
+     * @notice Add a distributor. Can only be called by the owner.
+     */
+    function addDistributor(
+        address distributor
+    ) external;
+
+    /**
+     * @notice Remove a distributor. Can only be called by the owner.
+     */
+    function removeDistributor(
+        address distributor
     ) external;
 
     /**

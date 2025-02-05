@@ -42,6 +42,11 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
     uint64 public nonce;
 
     /**
+     * @notice The list of distributor addresses
+     */
+    address[] private _distributors;
+
+    /**
      * @dev Constructor
      * @param keeper The address of the Keeper contract
      * @param _initialOwner The address of the contract owner
@@ -58,6 +63,43 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
         setRewardsDelay(_rewardsDelay);
         setRewardsMinOracles(_rewardsMinOracles);
         _transferOwnership(_initialOwner);
+    }
+
+    /**
+     * @notice Reverts if called by any account other than the owner or an authorized distributor.
+     */
+    modifier onlyOwnerOrDistributor() {
+        _checkOwnerOrDistributor();
+        _;
+    }
+
+    function _checkOwnerOrDistributor() internal view {
+        if (owner() != _msgSender() && !_isDistributor(_msgSender())) {
+            revert DistributorUnauthorizedAccount(_msgSender());
+        }
+    }
+
+    /// @inheritdoc IMerkleDistributor
+    function isDistributor(
+        address account
+    ) external view returns (bool) {
+        return _isDistributor(account);
+    }
+
+    function _isDistributor(
+        address account
+    ) private view returns (bool) {
+        for (uint256 i = 0; i < _distributors.length; i++) {
+            if (_distributors[i] == account) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// @inheritdoc IMerkleDistributor
+    function distributors() external view returns (address[] memory) {
+        return _distributors;
     }
 
     /// @inheritdoc IMerkleDistributor
@@ -120,13 +162,38 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
     }
 
     /// @inheritdoc IMerkleDistributor
+    function addDistributor(
+        address distributor
+    ) external onlyOwner {
+        _distributors.push(distributor);
+        emit DistributorAdded(msg.sender, distributor);
+    }
+
+    /// @inheritdoc IMerkleDistributor
+    function removeDistributor(
+        address distributor
+    ) external onlyOwner {
+        uint256 length = _distributors.length;
+        for (uint256 i = 0; i < length; i++) {
+            if (_distributors[i] == distributor) {
+                if (i != length - 1) {
+                    _distributors[i] = _distributors[length - 1];
+                }
+                _distributors.pop();
+                break;
+            }
+        }
+        emit DistributorRemoved(msg.sender, distributor);
+    }
+
+    /// @inheritdoc IMerkleDistributor
     function distributePeriodically(
         address token,
         uint256 amount,
         uint256 delayInSeconds,
         uint256 durationInSeconds,
         bytes calldata extraData
-    ) external onlyOwner {
+    ) external onlyOwnerOrDistributor {
         if (amount == 0) revert InvalidAmount();
         if (durationInSeconds == 0) revert InvalidDuration();
 
@@ -140,7 +207,7 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
         uint256 amount,
         string calldata rewardsIpfsHash,
         bytes calldata extraData
-    ) external onlyOwner {
+    ) external onlyOwnerOrDistributor {
         if (amount == 0) revert InvalidAmount();
 
         SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);

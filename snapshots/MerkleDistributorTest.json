@@ -1,9 +1,14 @@
 {
-  "MerkleDistributorTest_test_claim": "146428",
-  "MerkleDistributorTest_test_constructor": "1410695",
-  "MerkleDistributorTest_test_distributeOneTime": "74966",
-  "MerkleDistributorTest_test_distributePeriodically": "73090",
-  "MerkleDistributorTest_test_setRewardsDelay": "30905",
-  "MerkleDistributorTest_test_setRewardsMinOracles": "36907",
-  "MerkleDistributorTest_test_setRewardsRoot": "52139"
+  "MerkleDistributorTest_test_addDistributor": "49258",
+  "MerkleDistributorTest_test_claim": "109812",
+  "MerkleDistributorTest_test_constructor": "1417543",
+  "MerkleDistributorTest_test_distributeOneTimeByDistributor": "41926",
+  "MerkleDistributorTest_test_distributeOneTimeByOwner": "43464",
+  "MerkleDistributorTest_test_distributePeriodicallyByDistributor": "40508",
+  "MerkleDistributorTest_test_distributePeriodicallyByOwner": "42053",
+  "MerkleDistributorTest_test_removeDistributor": "4817",
+  "MerkleDistributorTest_test_removeDistributor2": "4351",
+  "MerkleDistributorTest_test_setRewardsDelay": "9777",
+  "MerkleDistributorTest_test_setRewardsMinOracles": "11291",
+  "MerkleDistributorTest_test_setRewardsRoot": "14593"
 }
