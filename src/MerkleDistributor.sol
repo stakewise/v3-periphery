@@ -24,7 +24,11 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
 
     IKeeperOracles private immutable _keeper;
 
+    /// @inheritdoc IMerkleDistributor
     mapping(address token => mapping(address user => uint256 cumulativeAmount)) public claimedAmounts;
+
+    /// @inheritdoc IMerkleDistributor
+    mapping(address distributor => bool isEnabled) public distributors;
 
     /// @inheritdoc IMerkleDistributor
     bytes32 public rewardsRoot;
@@ -58,6 +62,14 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
         setRewardsDelay(_rewardsDelay);
         setRewardsMinOracles(_rewardsMinOracles);
         _transferOwnership(_initialOwner);
+    }
+
+    /**
+     * @notice Reverts if called by any account other than an enabled distributor.
+     */
+    modifier onlyDistributor() {
+        if (!distributors[msg.sender]) revert Errors.AccessDenied();
+        _;
     }
 
     /// @inheritdoc IMerkleDistributor
@@ -120,13 +132,19 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
     }
 
     /// @inheritdoc IMerkleDistributor
+    function setDistributor(address distributor, bool isEnabled) external onlyOwner {
+        distributors[distributor] = isEnabled;
+        emit DistributorUpdated(msg.sender, distributor, isEnabled);
+    }
+
+    /// @inheritdoc IMerkleDistributor
     function distributePeriodically(
         address token,
         uint256 amount,
         uint256 delayInSeconds,
         uint256 durationInSeconds,
         bytes calldata extraData
-    ) external onlyOwner {
+    ) external onlyDistributor {
         if (amount == 0) revert InvalidAmount();
         if (durationInSeconds == 0) revert InvalidDuration();
 
@@ -140,7 +158,7 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
         uint256 amount,
         string calldata rewardsIpfsHash,
         bytes calldata extraData
-    ) external onlyOwner {
+    ) external onlyDistributor {
         if (amount == 0) revert InvalidAmount();
 
         SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);

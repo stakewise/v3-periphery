@@ -85,10 +85,80 @@ contract MerkleDistributorTest is Test {
         assertEq(distributor.rewardsDelay(), newDelay, 'Should correctly update rewardsDelay');
     }
 
+    function test_addDistributorUnauthorized() public {
+        address account = address(5);
+
+        // Try to add from invalid address
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        distributor.setDistributor(account, true);
+
+        assertEq(distributor.distributors(account), false, 'Should not add distributor');
+    }
+
+    function test_addDistributorNormal() public {
+        address account = address(5);
+
+        // Add a valid distributor
+        vm.startPrank(owner);
+        vm.expectEmit(address(distributor));
+        emit IMerkleDistributor.DistributorUpdated(owner, account, true);
+        vm.startSnapshotGas('MerkleDistributorTest_test_addDistributor');
+        distributor.setDistributor(account, true);
+        vm.stopSnapshotGas();
+        vm.stopPrank();
+
+        assertEq(distributor.distributors(account), true, 'Should correctly add distributor');
+        assertEq(distributor.distributors(vm.addr(6)), false, 'Not every address is a distributor');
+    }
+
+    function test_removeDistributorUnauthorized() public {
+        address account = address(5);
+
+        // Add distributor
+        vm.prank(owner);
+        distributor.setDistributor(account, true);
+
+        // Try to remove from invalid address
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        distributor.setDistributor(account, false);
+
+        assertEq(distributor.distributors(account), true, 'Should not remove distributor');
+    }
+
+    function test_removeDistributorNormal() public {
+        // 2 distributors, remove the first one
+        address account = address(5);
+        address account2 = address(6);
+
+        // Add distributors
+        vm.startPrank(owner);
+        distributor.setDistributor(account, true);
+        distributor.setDistributor(account2, true);
+        vm.stopPrank();
+
+        // Remove distributor
+        vm.startPrank(owner);
+        vm.expectEmit(address(distributor));
+        emit IMerkleDistributor.DistributorUpdated(owner, account, false);
+        vm.startSnapshotGas('MerkleDistributorTest_test_removeDistributor');
+        distributor.setDistributor(account, false);
+        vm.stopSnapshotGas();
+        vm.stopPrank();
+
+        assertEq(distributor.distributors(account), false, 'Should correctly remove distributor');
+        assertEq(distributor.distributors(account2), true, 'Should correctly remove distributor');
+    }
+
     function test_distributePeriodically() public {
         uint256 amount = 100 ether;
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+
+        // Ensure unauthorized accounts cannot call the function
+        vm.expectRevert(abi.encodeWithSelector(Errors.AccessDenied.selector));
         distributor.distributePeriodically(address(swiseToken), amount, 3600, 86_400, '');
+
+        // Add owner to distributors
+        vm.prank(owner);
+        distributor.setDistributor(owner, true);
 
         // Impersonate the owner to approve SWISE and distribute tokens
         vm.startPrank(owner);
@@ -115,8 +185,12 @@ contract MerkleDistributorTest is Test {
         uint256 amount = 100 ether;
 
         // Ensure unauthorized accounts cannot call the function
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
+        vm.expectRevert(abi.encodeWithSelector(Errors.AccessDenied.selector));
         distributor.distributeOneTime(address(swiseToken), amount, 'ipfsHash', 'extraData');
+
+        // Add owner to distributors
+        vm.prank(owner);
+        distributor.setDistributor(owner, true);
 
         // Impersonate the owner to approve SWISE and distribute tokens
         vm.startPrank(owner);

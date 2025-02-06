@@ -11,3 +11,7 @@ docs/
 # IDE
 .idea
 .vscode
+.history
+
+# MacOS
+.DS_Store

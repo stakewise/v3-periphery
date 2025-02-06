@@ -66,6 +66,7 @@ interface IMerkleDistributor {
 
     /**
      * @notice Emitted when the rewards are claimed
+     * @param caller The address of the caller
      * @param account The address of the account
      * @param tokens The list of tokens
      * @param cumulativeAmounts The cumulative amounts of tokens
@@ -73,6 +74,14 @@ interface IMerkleDistributor {
     event RewardsClaimed(
         address indexed caller, address indexed account, address[] tokens, uint256[] cumulativeAmounts
     );
+
+    /**
+     * @notice Emitted when a distributor is added or removed
+     * @param caller The address of the caller
+     * @param distributor The address of the distributor
+     * @param isEnabled The status of the distributor
+     */
+    event DistributorUpdated(address indexed caller, address indexed distributor, bool isEnabled);
 
     /**
      * @notice Get the current rewards Merkle Tree root
@@ -113,6 +122,14 @@ interface IMerkleDistributor {
     function claimedAmounts(address token, address user) external view returns (uint256 cumulativeAmount);
 
     /**
+     * @notice Get the status of a distributor, is it enabled or not
+     * @param distributor The address of the distributor
+     */
+    function distributors(
+        address distributor
+    ) external view returns (bool isEnabled);
+
+    /**
      * @notice Get the next rewards root update timestamp
      * @return The next rewards root update timestamp
      */
@@ -145,6 +162,13 @@ interface IMerkleDistributor {
     function setRewardsMinOracles(
         uint64 newRewardsMinOracles
     ) external;
+
+    /**
+     * @notice Add or remove a distributor. Can only be called by the owner.
+     * @param distributor The address of the distributor
+     * @param isEnabled The status of the distributor, true for adding distributor, false for removing distributor
+     */
+    function setDistributor(address distributor, bool isEnabled) external;
 
     /**
      * @notice Distribute tokens every rewards delay for a specific duration
