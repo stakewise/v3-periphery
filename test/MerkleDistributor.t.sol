@@ -85,18 +85,24 @@ contract MerkleDistributorTest is Test {
         assertEq(distributor.rewardsDelay(), newDelay, 'Should correctly update rewardsDelay');
     }
 
-    function test_setDistributor() public {
+    function test_addDistributorUnauthorized() public {
         address account = address(5);
 
         // // Try to add from invalid address
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
         distributor.setDistributor(account, true);
 
+        assertEq(distributor.distributors(account), false, 'Should not add distributor');
+    }
+
+    function test_addDistributorNormal() public {
+        address account = address(5);
+
         // Add a valid distributor
         vm.startPrank(owner);
         vm.expectEmit(address(distributor));
         emit IMerkleDistributor.DistributorUpdated(owner, account, true);
-        vm.startSnapshotGas('MerkleDistributorTest_test_setDistributor');
+        vm.startSnapshotGas('MerkleDistributorTest_test_addDistributor');
         distributor.setDistributor(account, true);
         vm.stopSnapshotGas();
         vm.stopPrank();
