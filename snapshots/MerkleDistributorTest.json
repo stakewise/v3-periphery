@@ -1,9 +1,9 @@
 {
   "MerkleDistributorTest_test_addDistributor": "51298",
   "MerkleDistributorTest_test_claim": "146428",
-  "MerkleDistributorTest_test_constructor": "1464411",
-  "MerkleDistributorTest_test_distributeOneTime": "75013",
-  "MerkleDistributorTest_test_distributePeriodically": "73137",
+  "MerkleDistributorTest_test_constructor": "1465059",
+  "MerkleDistributorTest_test_distributeOneTime": "74989",
+  "MerkleDistributorTest_test_distributePeriodically": "73113",
   "MerkleDistributorTest_test_removeDistributor": "26886",
   "MerkleDistributorTest_test_setRewardsDelay": "30905",
   "MerkleDistributorTest_test_setRewardsMinOracles": "36951",
