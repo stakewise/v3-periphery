@@ -65,14 +65,8 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
      * @notice Reverts if called by any account other than an enabled distributor.
      */
     modifier onlyDistributor() {
-        _checkDistributor();
+        if (!distributors[msg.sender]) revert Errors.AccessDenied();
         _;
-    }
-
-    function _checkDistributor() internal view {
-        if (!distributors[_msgSender()]) {
-            revert Errors.AccessDenied();
-        }
     }
 
     /// @inheritdoc IMerkleDistributor

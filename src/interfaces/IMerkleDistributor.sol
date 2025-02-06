@@ -123,6 +123,7 @@ interface IMerkleDistributor {
 
     /**
      * @notice Get the status of a distributor, is it enabled or not
+     * @param distributor The address of the distributor
      */
     function distributors(
         address distributor
@@ -164,6 +165,8 @@ interface IMerkleDistributor {
 
     /**
      * @notice Add or remove a distributor. Can only be called by the owner.
+     * @param distributor The address of the distributor
+     * @param isEnabled The status of the distributor, true for adding distributor, false for removing distributor
      */
     function setDistributor(address distributor, bool isEnabled) external;
 
