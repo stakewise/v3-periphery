@@ -24,7 +24,10 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
 
     IKeeperOracles private immutable _keeper;
 
+    /// @inheritdoc IMerkleDistributor
     mapping(address token => mapping(address user => uint256 cumulativeAmount)) public claimedAmounts;
+
+    /// @inheritdoc IMerkleDistributor
     mapping(address distributor => bool isEnabled) public distributors;
 
     /// @inheritdoc IMerkleDistributor
