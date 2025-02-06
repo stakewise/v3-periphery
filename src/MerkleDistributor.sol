@@ -25,6 +25,7 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
     IKeeperOracles private immutable _keeper;
 
     mapping(address token => mapping(address user => uint256 cumulativeAmount)) public claimedAmounts;
+    mapping(address distributor => bool isEnabled) public distributors;
 
     /// @inheritdoc IMerkleDistributor
     bytes32 public rewardsRoot;
@@ -40,11 +41,6 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
 
     /// @inheritdoc IMerkleDistributor
     uint64 public nonce;
-
-    /**
-     * @notice The list of distributor addresses
-     */
-    address[] private _distributors;
 
     /**
      * @dev Constructor
@@ -66,40 +62,17 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
     }
 
     /**
-     * @notice Reverts if called by any account other than the owner or an authorized distributor.
+     * @notice Reverts if called by any account other than an enabled distributor.
      */
-    modifier onlyOwnerOrDistributor() {
-        _checkOwnerOrDistributor();
+    modifier onlyDistributor() {
+        _checkDistributor();
         _;
     }
 
-    function _checkOwnerOrDistributor() internal view {
-        if (owner() != _msgSender() && !_isDistributor(_msgSender())) {
-            revert DistributorUnauthorizedAccount(_msgSender());
+    function _checkDistributor() internal view {
+        if (!distributors[_msgSender()]) {
+            revert Errors.AccessDenied();
         }
-    }
-
-    /// @inheritdoc IMerkleDistributor
-    function isDistributor(
-        address account
-    ) external view returns (bool) {
-        return _isDistributor(account);
-    }
-
-    function _isDistributor(
-        address account
-    ) private view returns (bool) {
-        for (uint256 i = 0; i < _distributors.length; i++) {
-            if (_distributors[i] == account) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /// @inheritdoc IMerkleDistributor
-    function distributors() external view returns (address[] memory) {
-        return _distributors;
     }
 
     /// @inheritdoc IMerkleDistributor
@@ -162,28 +135,9 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
     }
 
     /// @inheritdoc IMerkleDistributor
-    function addDistributor(
-        address distributor
-    ) external onlyOwner {
-        _distributors.push(distributor);
-        emit DistributorAdded(msg.sender, distributor);
-    }
-
-    /// @inheritdoc IMerkleDistributor
-    function removeDistributor(
-        address distributor
-    ) external onlyOwner {
-        uint256 length = _distributors.length;
-        for (uint256 i = 0; i < length; i++) {
-            if (_distributors[i] == distributor) {
-                if (i != length - 1) {
-                    _distributors[i] = _distributors[length - 1];
-                }
-                _distributors.pop();
-                break;
-            }
-        }
-        emit DistributorRemoved(msg.sender, distributor);
+    function setDistributor(address distributor, bool isEnabled) external onlyOwner {
+        distributors[distributor] = isEnabled;
+        emit DistributorUpdated(msg.sender, distributor, isEnabled);
     }
 
     /// @inheritdoc IMerkleDistributor
@@ -193,7 +147,7 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
         uint256 delayInSeconds,
         uint256 durationInSeconds,
         bytes calldata extraData
-    ) external onlyOwnerOrDistributor {
+    ) external onlyDistributor {
         if (amount == 0) revert InvalidAmount();
         if (durationInSeconds == 0) revert InvalidDuration();
 
@@ -207,7 +161,7 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
         uint256 amount,
         string calldata rewardsIpfsHash,
         bytes calldata extraData
-    ) external onlyOwnerOrDistributor {
+    ) external onlyDistributor {
         if (amount == 0) revert InvalidAmount();
 
         SafeERC20.safeTransferFrom(IERC20(token), msg.sender, address(this), amount);

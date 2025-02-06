@@ -11,7 +11,6 @@ interface IMerkleDistributor {
     error InvalidTokens();
     error InvalidAmount();
     error InvalidDuration();
-    error DistributorUnauthorizedAccount(address account);
 
     /**
      * @notice Emitted when the rewards root is updated
@@ -77,24 +76,12 @@ interface IMerkleDistributor {
     );
 
     /**
-     * @notice Emitted when a distributor is added
+     * @notice Emitted when a distributor is added or removed
      * @param caller The address of the caller
      * @param distributor The address of the distributor
+     * @param isEnabled The status of the distributor
      */
-    event DistributorAdded(address indexed caller, address indexed distributor);
-
-    /**
-     * @notice Emitted when a distributor is removed
-     * @param caller The address of the caller
-     * @param distributor The address of the distributor
-     */
-    event DistributorRemoved(address indexed caller, address indexed distributor);
-
-    function isDistributor(
-        address account
-    ) external view returns (bool);
-
-    function distributors() external view returns (address[] memory);
+    event DistributorUpdated(address indexed caller, address indexed distributor, bool isEnabled);
 
     /**
      * @notice Get the current rewards Merkle Tree root
@@ -135,6 +122,13 @@ interface IMerkleDistributor {
     function claimedAmounts(address token, address user) external view returns (uint256 cumulativeAmount);
 
     /**
+     * @notice Get the status of a distributor, is it enabled or not
+     */
+    function distributors(
+        address distributor
+    ) external view returns (bool isEnabled);
+
+    /**
      * @notice Get the next rewards root update timestamp
      * @return The next rewards root update timestamp
      */
@@ -169,18 +163,9 @@ interface IMerkleDistributor {
     ) external;
 
     /**
-     * @notice Add a distributor. Can only be called by the owner.
+     * @notice Add or remove a distributor. Can only be called by the owner.
      */
-    function addDistributor(
-        address distributor
-    ) external;
-
-    /**
-     * @notice Remove a distributor. Can only be called by the owner.
-     */
-    function removeDistributor(
-        address distributor
-    ) external;
+    function setDistributor(address distributor, bool isEnabled) external;
 
     /**
      * @notice Distribute tokens every rewards delay for a specific duration
