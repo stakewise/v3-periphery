@@ -88,7 +88,7 @@ contract MerkleDistributorTest is Test {
     function test_addDistributorUnauthorized() public {
         address account = address(5);
 
-        // // Try to add from invalid address
+        // Try to add from invalid address
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
         distributor.setDistributor(account, true);
 
