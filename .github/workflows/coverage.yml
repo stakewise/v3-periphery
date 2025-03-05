@@ -32,7 +32,14 @@ jobs:
         run: |
           {
           echo 'COVERAGE<<EOF'
-          forge coverage --no-match-coverage "(script|mocks)" --ir-minimum | grep '^|' | grep -v 'test/'
+          echo "| File | % Lines | % Statements | % Branches | % Funcs |"
+          echo "|------|---------|--------------|------------|---------|"
+          forge coverage --no-match-coverage "(script|mocks)" --ir-minimum 2>/dev/null | 
+            grep '^|' | 
+            grep -v 'test/' | 
+            grep -v '^|--' | 
+            grep -v 'File' |
+            sed 's/-*+//g'
           echo EOF
           } >> "$GITHUB_OUTPUT"
         env:
