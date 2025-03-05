@@ -30,8 +30,9 @@ contract DeployAaveBoostHelpers is Script {
         ConfigParams memory params = _readEnvVariables();
 
         // Deploy BoostHelpers.
-        BoostHelpers boostHelpers =
-            new BoostHelpers(params.keeper, params.leverageStrategy, params.osTokenVaultController, params.osTokenVaultEscrow);
+        BoostHelpers boostHelpers = new BoostHelpers(
+            params.keeper, params.leverageStrategy, params.osTokenVaultController, params.osTokenVaultEscrow
+        );
         console.log('Aave BoostHelpers deployed at: ', address(boostHelpers));
 
         vm.stopBroadcast();

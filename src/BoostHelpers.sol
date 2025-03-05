@@ -97,8 +97,14 @@ contract BoostHelpers is IBoostHelpers {
             int256 _assets = SafeCast.toInt256(stakedAssets) - SafeCast.toInt256(borrowedAssets);
             boost.assets = _assets < 0 ? 0 : SafeCast.toUint256(_assets);
         }
-        boost.osTokenLtv = Math.mulDiv(_osTokenCtrl.convertToAssets(mintedOsTokenShares), _wad, stakedAssets);
-        boost.borrowLtv = Math.mulDiv(borrowedAssets, _wad, _osTokenCtrl.convertToAssets(suppliedOsTokenShares));
+        if (stakedAssets > 0) {
+            boost.osTokenLtv = Math.mulDiv(_osTokenCtrl.convertToAssets(mintedOsTokenShares), _wad, stakedAssets);
+        }
+
+        uint256 suppliedOsTokenAssets = _osTokenCtrl.convertToAssets(suppliedOsTokenShares);
+        if (suppliedOsTokenAssets > 0) {
+            boost.borrowLtv = Math.mulDiv(borrowedAssets, _wad, suppliedOsTokenAssets);
+        }
     }
 
     /**
