@@ -12,6 +12,7 @@ contract DeployAaveBoostHelpers is Script {
         address leverageStrategy;
         address osTokenVaultController;
         address osTokenVaultEscrow;
+        address sharedMevEscrow;
     }
 
     function _readEnvVariables() internal view returns (ConfigParams memory params) {
@@ -19,6 +20,7 @@ contract DeployAaveBoostHelpers is Script {
         params.leverageStrategy = vm.envAddress('AAVE_LEVERAGE_STRATEGY');
         params.osTokenVaultController = vm.envAddress('OS_TOKEN_VAULT_CONTROLLER');
         params.osTokenVaultEscrow = vm.envAddress('OS_TOKEN_VAULT_ESCROW');
+        params.sharedMevEscrow = vm.envAddress('SHARED_MEV_ESCROW');
     }
 
     function run() external {
@@ -31,7 +33,11 @@ contract DeployAaveBoostHelpers is Script {
 
         // Deploy BoostHelpers.
         BoostHelpers boostHelpers = new BoostHelpers(
-            params.keeper, params.leverageStrategy, params.osTokenVaultController, params.osTokenVaultEscrow
+            params.keeper,
+            params.leverageStrategy,
+            params.osTokenVaultController,
+            params.osTokenVaultEscrow,
+            params.sharedMevEscrow
         );
         console.log('Aave BoostHelpers deployed at: ', address(boostHelpers));
 

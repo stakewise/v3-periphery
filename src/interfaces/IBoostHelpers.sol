@@ -45,7 +45,7 @@ interface IBoostHelpers {
     function getBoostOsTokenShares(
         address user,
         address vault,
-        IKeeperRewards.HarvestParams calldata harvestParams,
+        IKeeperRewards.HarvestParams memory harvestParams,
         ExitRequest calldata exitRequest
     ) external returns (uint256 osTokenShares);
 
@@ -60,7 +60,7 @@ interface IBoostHelpers {
     function getBoostDetails(
         address user,
         address vault,
-        IKeeperRewards.HarvestParams calldata harvestParams,
+        IKeeperRewards.HarvestParams memory harvestParams,
         ExitRequest calldata exitRequest
     ) external returns (BoostDetails memory);
 }

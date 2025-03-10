@@ -9,6 +9,7 @@ import {IKeeperRewards} from '@stakewise-core/interfaces/IKeeperRewards.sol';
 import {IVaultState} from '@stakewise-core/interfaces/IVaultState.sol';
 import {IOsTokenVaultEscrow} from '@stakewise-core/interfaces/IOsTokenVaultEscrow.sol';
 import {IVaultEnterExit} from '@stakewise-core/interfaces/IVaultEnterExit.sol';
+import {IVaultMev} from '@stakewise-core/interfaces/IVaultMev.sol';
 import {Errors} from '@stakewise-core/libraries/Errors.sol';
 import {ILeverageStrategy} from './leverage/interfaces/ILeverageStrategy.sol';
 import {IBoostHelpers} from './interfaces/IBoostHelpers.sol';
@@ -21,6 +22,7 @@ import {IBoostHelpers} from './interfaces/IBoostHelpers.sol';
 contract BoostHelpers is IBoostHelpers {
     uint256 private constant _wad = 1e18;
 
+    address private immutable _sharedMevEscrow;
     IKeeperRewards private immutable _keeper;
     ILeverageStrategy private immutable _leverageStrategy;
     IOsTokenVaultController private immutable _osTokenCtrl;
@@ -32,19 +34,27 @@ contract BoostHelpers is IBoostHelpers {
      * @param leverageStrategy The address of the LeverageStrategy contract
      * @param osTokenCtrl The address of the OsTokenVaultController contract
      * @param osTokenEscrow The address of the OsTokenVaultEscrow contract
+     * @param sharedMevEscrow The address of the SharedMevEscrow contract
      */
-    constructor(address keeper, address leverageStrategy, address osTokenCtrl, address osTokenEscrow) {
+    constructor(
+        address keeper,
+        address leverageStrategy,
+        address osTokenCtrl,
+        address osTokenEscrow,
+        address sharedMevEscrow
+    ) {
         _keeper = IKeeperRewards(keeper);
         _leverageStrategy = ILeverageStrategy(leverageStrategy);
         _osTokenCtrl = IOsTokenVaultController(osTokenCtrl);
         _osTokenEscrow = IOsTokenVaultEscrow(osTokenEscrow);
+        _sharedMevEscrow = sharedMevEscrow;
     }
 
     /// @inheritdoc IBoostHelpers
     function getBoostOsTokenShares(
         address user,
         address vault,
-        IKeeperRewards.HarvestParams calldata harvestParams,
+        IKeeperRewards.HarvestParams memory harvestParams,
         ExitRequest calldata exitRequest
     ) external returns (uint256) {
         BoostDetails memory boost = _calculateBoost(user, vault, harvestParams, exitRequest);
@@ -55,7 +65,7 @@ contract BoostHelpers is IBoostHelpers {
     function getBoostDetails(
         address user,
         address vault,
-        IKeeperRewards.HarvestParams calldata harvestParams,
+        IKeeperRewards.HarvestParams memory harvestParams,
         ExitRequest calldata exitRequest
     ) external returns (BoostDetails memory) {
         return _calculateBoost(user, vault, harvestParams, exitRequest);
@@ -72,10 +82,14 @@ contract BoostHelpers is IBoostHelpers {
     function _calculateBoost(
         address user,
         address vault,
-        IKeeperRewards.HarvestParams calldata harvestParams,
+        IKeeperRewards.HarvestParams memory harvestParams,
         ExitRequest calldata exitRequest
     ) private returns (BoostDetails memory boost) {
         if (_keeper.canHarvest(vault)) {
+            if (IVaultMev(vault).mevEscrow() != _sharedMevEscrow) {
+                harvestParams.reward -= SafeCast.toInt160(SafeCast.toInt256(harvestParams.unlockedMevReward));
+                harvestParams.unlockedMevReward = 0;
+            }
             IVaultState(vault).updateState(harvestParams);
         }
         address proxy = _leverageStrategy.getStrategyProxy(vault, user);
