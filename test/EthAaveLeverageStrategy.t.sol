@@ -27,11 +27,11 @@ import {EthVaultFactory, IEthVaultFactory} from '@stakewise-core/vaults/ethereum
 import {EthVault, IEthVault} from '@stakewise-core/vaults/ethereum/EthVault.sol';
 import {Keeper} from '@stakewise-core/keeper/Keeper.sol';
 import {Errors} from '@stakewise-core/libraries/Errors.sol';
-import {ILeverageStrategy} from '../../src/leverage/interfaces/ILeverageStrategy.sol';
-import {StrategiesRegistry, IStrategiesRegistry} from '../../src/StrategiesRegistry.sol';
-import {EthAaveLeverageStrategy} from '../../src/leverage/EthAaveLeverageStrategy.sol';
-import {OsTokenVaultEscrowAuth} from '../../src/OsTokenVaultEscrowAuth.sol';
-import {StrategyProxy} from '../../src/StrategyProxy.sol';
+import {ILeverageStrategy} from '../src/leverage/interfaces/ILeverageStrategy.sol';
+import {StrategiesRegistry, IStrategiesRegistry} from '../src/StrategiesRegistry.sol';
+import {EthAaveLeverageStrategy} from '../src/leverage/EthAaveLeverageStrategy.sol';
+import {OsTokenVaultEscrowAuth} from '../src/OsTokenVaultEscrowAuth.sol';
+import {StrategyProxy} from '../src/StrategyProxy.sol';
 
 contract EthAaveLeverageStrategyTest is Test {
     uint256 public constant forkBlockNumber = 20_928_188;
