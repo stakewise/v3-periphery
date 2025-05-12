@@ -18,3 +18,7 @@
 	path = lib/v3-core
 	url = https://github.com/stakewise/v3-core
 	branch = implement-meta-vault
+[submodule "lib/composable-cow"]
+	path = lib/composable-cow
+	url = https://github.com/cowprotocol/composable-cow
+	branch = main
