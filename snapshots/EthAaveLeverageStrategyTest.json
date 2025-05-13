@@ -1,15 +1,15 @@
 {
-  "EthAaveLeverageStrategyTest_test_claimExitedAssets1": "577151",
-  "EthAaveLeverageStrategyTest_test_claimExitedAssets2": "1061060",
-  "EthAaveLeverageStrategyTest_test_claimExitedAssets3": "1061701",
-  "EthAaveLeverageStrategyTest_test_deposit_HasPosition": "783389",
-  "EthAaveLeverageStrategyTest_test_deposit_NoPosition": "907625",
-  "EthAaveLeverageStrategyTest_test_enterExitQueue": "229854",
-  "EthAaveLeverageStrategyTest_test_forceEnterExitQueue_borrowForceExitLtvPercent": "277973",
-  "EthAaveLeverageStrategyTest_test_forceEnterExitQueue_vaultForceExitLtvPercent": "251723",
-  "EthAaveLeverageStrategyTest_test_permit": "376914",
-  "EthAaveLeverageStrategyTest_test_rescueLendingAssets1": "700553",
-  "EthAaveLeverageStrategyTest_test_rescueLendingAssets2": "594553",
-  "EthAaveLeverageStrategyTest_test_rescueVaultAssets": "658363",
-  "EthAaveLeverageStrategyTest_test_upgradeProxy": "57780"
+  "EthAaveLeverageStrategyTest_test_claimExitedAssets1": "454988",
+  "EthAaveLeverageStrategyTest_test_claimExitedAssets2": "724579",
+  "EthAaveLeverageStrategyTest_test_claimExitedAssets3": "728077",
+  "EthAaveLeverageStrategyTest_test_deposit_HasPosition": "723913",
+  "EthAaveLeverageStrategyTest_test_deposit_NoPosition": "1091780",
+  "EthAaveLeverageStrategyTest_test_enterExitQueue": "198870",
+  "EthAaveLeverageStrategyTest_test_forceEnterExitQueue_borrowForceExitLtvPercent": "225859",
+  "EthAaveLeverageStrategyTest_test_forceEnterExitQueue_vaultForceExitLtvPercent": "231745",
+  "EthAaveLeverageStrategyTest_test_permit": "366343",
+  "EthAaveLeverageStrategyTest_test_rescueLendingAssets1": "497323",
+  "EthAaveLeverageStrategyTest_test_rescueLendingAssets2": "384408",
+  "EthAaveLeverageStrategyTest_test_rescueVaultAssets": "766815",
+  "EthAaveLeverageStrategyTest_test_upgradeProxy": "23120"
 }

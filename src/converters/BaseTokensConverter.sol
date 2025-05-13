@@ -60,8 +60,11 @@ abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeab
         uint256 nonce = _nonce;
         for (uint256 i = 0; i < tokens.length;) {
             token = tokens[i];
+            if (token == address(0) || token == _assetToken) {
+                revert InvalidToken();
+            }
             tokenBalance = IERC20(token).balanceOf(address(this));
-            if (token == address(0) || token == _assetToken || tokenBalance == 0) {
+            if (tokenBalance == 0) {
                 revert InvalidToken();
             }
 
