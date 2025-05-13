@@ -11,7 +11,7 @@ interface ITokensConverterFactory {
     /**
      * @dev Emitted when the tokens converter is created
      * @param sender The address of the sender
-     * @param vault The address of the vault that converted is attached to
+     * @param vault The address of the vault that converter is attached to
      * @param converter The address of the converter contract
      */
     event TokensConverterCreated(address sender, address indexed vault, address indexed converter);

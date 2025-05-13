@@ -22,14 +22,14 @@ interface IBaseTokensConverter {
 
     /**
      * @notice Initialize the contract
-     * @param _vault The address of the vault that converted is attached to
+     * @param _vault The address of the vault that converter is attached to
      */
     function initialize(
         address _vault
     ) external;
 
     /**
-     * @notice Get the address of the vault that converted is attached to.
+     * @notice Get the address of the vault that converter is attached to.
      * @return The address of the vault
      */
     function vault() external view returns (address);
