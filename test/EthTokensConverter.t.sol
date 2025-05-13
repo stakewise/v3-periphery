@@ -4,14 +4,12 @@ pragma solidity ^0.8.26;
 
 import {EthHelpers} from '@stakewise-test/helpers/EthHelpers.sol';
 import {EthVault, IEthVault} from '@stakewise-core/vaults/ethereum/EthVault.sol';
-import {IVaultEthStaking} from '@stakewise-core/interfaces/IVaultEthStaking.sol';
 import {IVaultState} from '@stakewise-core/interfaces/IVaultState.sol';
 import {Errors} from '@stakewise-core/libraries/Errors.sol';
 import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {WETH9} from '@aave-core/dependencies/weth/WETH9.sol';
 import {IBaseTokensConverter} from '../src/converters/interfaces/IBaseTokensConverter.sol';
-import {IComposableCoW} from '../src/converters/interfaces/IComposableCoW.sol';
 import {EthTokensConverter} from '../src/converters/EthTokensConverter.sol';
 import {TokensConverterFactory} from '../src/converters/TokensConverterFactory.sol';
 import {SwapOrderHandler} from '../src/converters/SwapOrderHandler.sol';

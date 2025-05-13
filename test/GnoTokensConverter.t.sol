@@ -4,14 +4,9 @@ pragma solidity ^0.8.26;
 
 import {GnoHelpers} from '@stakewise-test/helpers/GnoHelpers.sol';
 import {GnoVault, IGnoVault} from '@stakewise-core/vaults/gnosis/GnoVault.sol';
-import {IVaultEthStaking} from '@stakewise-core/interfaces/IVaultEthStaking.sol';
 import {IVaultState} from '@stakewise-core/interfaces/IVaultState.sol';
-import {Errors} from '@stakewise-core/libraries/Errors.sol';
-import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {WETH9} from '@aave-core/dependencies/weth/WETH9.sol';
 import {IBaseTokensConverter} from '../src/converters/interfaces/IBaseTokensConverter.sol';
-import {IComposableCoW} from '../src/converters/interfaces/IComposableCoW.sol';
 import {GnoTokensConverter} from '../src/converters/GnoTokensConverter.sol';
 import {TokensConverterFactory} from '../src/converters/TokensConverterFactory.sol';
 import {SwapOrderHandler} from '../src/converters/SwapOrderHandler.sol';
@@ -72,7 +67,64 @@ contract GnoTokensConverterTest is GnoHelpers {
         converter = GnoTokensConverter(payable(factory.createConverter(vault)));
     }
 
-    function test_initialize_approvesGnoToken() public {}
-    function test_createSwapOrders_convertsXDaiToSDai() public {}
-    function test_transferAssets_transfersGnoToVault() public {}
+    function test_initialize_approvesGnoToken() public view {
+        // Check that the GNO token is approved for the vault to spend
+        uint256 allowance = IERC20(address(contracts.gnoToken)).allowance(address(converter), vault);
+        assertEq(allowance, type(uint256).max, 'GNO token not approved for vault');
+    }
+
+    function test_createSwapOrders_convertsXDaiToSDai() public {
+        // Fund the converter with xDAI
+        uint256 xdaiAmount = 3 ether;
+        vm.deal(address(converter), xdaiAmount);
+
+        // Setup a mock token with balance
+        address tokenWithBalance = makeAddr('tokenWithBalance');
+        vm.mockCall(
+            tokenWithBalance,
+            abi.encodeWithSelector(IERC20.balanceOf.selector, address(converter)),
+            abi.encode(100 ether)
+        );
+
+        vm.mockCall(
+            tokenWithBalance,
+            abi.encodeWithSelector(IERC20.allowance.selector, address(converter), relayer),
+            abi.encode(0)
+        );
+        assertEq(contracts.sdaiToken.balanceOf(address(converter)), 0, 'sDAI balance should be 0');
+
+        // Create tokens array
+        address[] memory tokens = new address[](1);
+        tokens[0] = tokenWithBalance;
+
+        // Expect TokensConversionSubmitted event
+        vm.expectEmit(true, false, false, true);
+        emit IBaseTokensConverter.TokensConversionSubmitted(tokens);
+
+        // Call createSwapOrders
+        converter.createSwapOrders(tokens);
+
+        // Verify xDAI converted
+        assertEq(address(converter).balance, 0, 'xDAI was not spent');
+        assertGt(contracts.sdaiToken.balanceOf(address(converter)), 0, 'sDAI balance should be greater than 0');
+    }
+
+    function test_transferAssets_transfersGnoToVault() public {
+        // Fund the converter with GNO tokens
+        uint256 gnoAmount = 2 ether;
+        _mintGnoToken(address(converter), gnoAmount);
+
+        // Expect event emission
+        vm.expectEmit(true, true, true, true);
+        emit IVaultState.AssetsDonated(address(converter), gnoAmount);
+
+        uint256 gnoBalanceBefore = IERC20(address(contracts.gnoToken)).balanceOf(vault);
+
+        // Call transferAssets
+        converter.transferAssets();
+
+        // Verify GNO was transferred
+        assertEq(IERC20(address(contracts.gnoToken)).balanceOf(address(converter)), 0, 'GNO was not transferred');
+        assertEq(IERC20(address(contracts.gnoToken)).balanceOf(vault), gnoBalanceBefore + gnoAmount, 'GNO was not transferred to vault');
+    }
 }
