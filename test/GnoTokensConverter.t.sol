@@ -125,6 +125,10 @@ contract GnoTokensConverterTest is GnoHelpers {
 
         // Verify GNO was transferred
         assertEq(IERC20(address(contracts.gnoToken)).balanceOf(address(converter)), 0, 'GNO was not transferred');
-        assertEq(IERC20(address(contracts.gnoToken)).balanceOf(vault), gnoBalanceBefore + gnoAmount, 'GNO was not transferred to vault');
+        assertEq(
+            IERC20(address(contracts.gnoToken)).balanceOf(vault),
+            gnoBalanceBefore + gnoAmount,
+            'GNO was not transferred to vault'
+        );
     }
 }
