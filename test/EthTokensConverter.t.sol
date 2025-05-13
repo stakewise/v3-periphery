@@ -2,7 +2,8 @@
 
 pragma solidity ^0.8.26;
 
-import {EthHelpers} from '@stakewise-core/test/helpers/EthHelpers.sol';
+import {IEthVault} from '@stakewise-core/interfaces/IEthVault.sol';
+import {EthHelpers} from '@stakewise-test/helpers/EthHelpers.sol';
 
 contract EthTokensConverterTest is EthHelpers {
     ForkContracts public contracts;
@@ -28,8 +29,7 @@ contract EthTokensConverterTest is EthHelpers {
                 metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
             })
         );
-        address vaultAddr = _getOrCreateVault(VaultType.EthVault, admin, initParams, false);
-        vault = EthVault(payable(vaultAddr));
+        vault = _getOrCreateVault(VaultType.EthVault, admin, initParams, false);
     }
 
     function test_createSwapOrders_invalidToken() public {}

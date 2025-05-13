@@ -1,7 +1,7 @@
 @openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/
 @openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/
 @openzeppelin/foundry-upgrades/=lib/openzeppelin-foundry-upgrades/src/
-@stakewise-core/test/=lib/v3-core/test/
+@stakewise-test/=lib/v3-core/test/
 @stakewise-core/=lib/v3-core/contracts/
 @aave-core/=lib/aave-v3-origin/src/contracts/
 @composable-cow/=lib/composable-cow/src/
