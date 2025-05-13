@@ -13,7 +13,7 @@ import {BaseTokensConverter, IBaseTokensConverter} from './BaseTokensConverter.s
  * @author StakeWise
  * @notice Defines functionality for converting tokens to GNO and returning them to the Vault
  */
-abstract contract GnoTokensConverter is BaseTokensConverter {
+contract GnoTokensConverter is BaseTokensConverter {
     ISavingsXDaiAdapter private immutable _savingsXDaiAdapter;
 
     /**
@@ -37,8 +37,8 @@ abstract contract GnoTokensConverter is BaseTokensConverter {
     /// @inheritdoc IBaseTokensConverter
     function initialize(
         address _vault
-    ) public override initializer {
-        super.initialize(_vault);
+    ) external initializer {
+        __BaseTokensConverter_init(_vault);
         IERC20(_assetToken).approve(_vault, type(uint256).max);
     }
 

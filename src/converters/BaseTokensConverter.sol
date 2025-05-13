@@ -48,17 +48,6 @@ abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeab
     }
 
     /// @inheritdoc IBaseTokensConverter
-    function initialize(
-        address _vault
-    ) public virtual initializer {
-        __ReentrancyGuard_init();
-        if (IVaultVersion(_vault).version() < _supportedVaultVersion()) {
-            revert Errors.InvalidVault();
-        }
-        vault = _vault;
-    }
-
-    /// @inheritdoc IBaseTokensConverter
     function createSwapOrders(
         address[] calldata tokens
     ) public virtual nonReentrant {
@@ -130,6 +119,20 @@ abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeab
             abi.encode(order), // GPv2Order
             abi.encode(payload) // ComposableCoW.PayloadStruct
         );
+    }
+
+    /**
+     * @dev Initializes the BaseTokensConverter contract
+     * @param _vault The address of the vault contract
+     */
+    function __BaseTokensConverter_init(
+        address _vault
+    ) internal onlyInitializing {
+        __ReentrancyGuard_init();
+        if (IVaultVersion(_vault).version() < _supportedVaultVersion()) {
+            revert Errors.InvalidVault();
+        }
+        vault = _vault;
     }
 
     /// @inheritdoc IBaseTokensConverter

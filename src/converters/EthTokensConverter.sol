@@ -29,6 +29,13 @@ contract EthTokensConverter is BaseTokensConverter {
     ) BaseTokensConverter(composableCoW, swapOrderHandler, assetToken, relayer) {}
 
     /// @inheritdoc IBaseTokensConverter
+    function initialize(
+        address _vault
+    ) external initializer {
+        __BaseTokensConverter_init(_vault);
+    }
+
+    /// @inheritdoc IBaseTokensConverter
     function transferAssets() external override {
         uint256 balance = IERC20(_assetToken).balanceOf(address(this));
         if (balance > 0) {
