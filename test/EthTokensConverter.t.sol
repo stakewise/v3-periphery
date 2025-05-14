@@ -67,6 +67,19 @@ contract EthTokensConverterTest is EthHelpers {
         converter = EthTokensConverter(payable(factory.createConverter(vault)));
     }
 
+    function test_createConverter_failsForInvalidVault() public {
+        // Create an invalid vault (not registered)
+        address invalidVault = makeAddr('invalidVault');
+
+        // Expect revert on converter creation
+        vm.expectRevert(Errors.InvalidVault.selector);
+        factory.createConverter(invalidVault);
+
+        // Expect revert on converter creation
+        vm.expectRevert(Errors.InvalidVault.selector);
+        factory.createConverter(address(0));
+    }
+
     function test_createSwapOrders_invalidToken() public {
         // Test with zero address
         address[] memory tokens = new address[](1);
