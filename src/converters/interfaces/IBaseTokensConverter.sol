@@ -2,9 +2,6 @@
 
 pragma solidity ^0.8.26;
 
-import {IConditionalOrder} from '@composable-cow/BaseConditionalOrder.sol';
-import {IComposableCoW} from './IComposableCow.sol';
-
 /**
  * @title IBaseTokensConverter
  * @author StakeWise
