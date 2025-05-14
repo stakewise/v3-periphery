@@ -5,7 +5,6 @@ pragma solidity ^0.8.26;
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IConditionalOrder} from '@composable-cow/interfaces/IConditionalOrder.sol';
-import {IComposableCoW} from '../converters/interfaces/IComposableCoW.sol';
 import {SwapOrderHandler} from '../converters/SwapOrderHandler.sol';
 
 /**
@@ -13,7 +12,7 @@ import {SwapOrderHandler} from '../converters/SwapOrderHandler.sol';
  * @author StakeWise
  * @notice Mock for ComposableCow contract
  */
-contract ComposableCowMock is Ownable, IComposableCoW {
+contract ComposableCowMock is Ownable {
     error InvalidToken();
 
     mapping(address token => uint256 rate) public rates;
