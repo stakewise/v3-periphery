@@ -17,7 +17,6 @@ contract ComposableCowMock is Ownable, IComposableCoW {
     error InvalidToken();
 
     mapping(address token => uint256 rate) public rates;
-    uint256 public sellTokenRate;
 
     IERC20 public assetToken;
 
