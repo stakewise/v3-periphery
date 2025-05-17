@@ -36,7 +36,7 @@ interface IBaseTokensConverter {
      * @param tokens The list of tokens to be converted
      */
     function createSwapOrders(
-        address[] calldata tokens
+        address[] memory tokens
     ) external;
 
     /**

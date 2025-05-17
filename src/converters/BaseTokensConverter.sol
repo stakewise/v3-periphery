@@ -49,7 +49,7 @@ abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeab
 
     /// @inheritdoc IBaseTokensConverter
     function createSwapOrders(
-        address[] calldata tokens
+        address[] memory tokens
     ) public virtual nonReentrant {
         address token;
         SwapOrderHandler.Data memory order;

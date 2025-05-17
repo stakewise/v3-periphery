@@ -13,14 +13,12 @@ contract DeployEthTokensConverterFactory is Script {
         address composableCoW;
         address assetToken;
         address relayer;
-        address vaultsRegistry;
     }
 
     function _readEnvVariables() internal view returns (ConfigParams memory params) {
         params.composableCoW = vm.envAddress('COMPOSABLE_COW');
         params.assetToken = vm.envAddress('ASSET_TOKEN');
         params.relayer = vm.envAddress('COWSWAP_RELAYER');
-        params.vaultsRegistry = vm.envAddress('VAULTS_REGISTRY');
     }
 
     function run() external {
@@ -39,7 +37,7 @@ contract DeployEthTokensConverterFactory is Script {
             new EthTokensConverter(params.composableCoW, address(swapOrderHandler), params.assetToken, params.relayer);
 
         // Deploy tokens converter factory.
-        TokensConverterFactory factory = new TokensConverterFactory(address(implementation), params.vaultsRegistry);
+        TokensConverterFactory factory = new TokensConverterFactory(address(implementation));
         console.log('TokensConverterFactory deployed at: ', address(factory));
 
         vm.stopBroadcast();

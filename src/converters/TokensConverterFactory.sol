@@ -3,7 +3,6 @@
 pragma solidity ^0.8.26;
 
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
-import {IVaultsRegistry} from '@stakewise-core/interfaces/IVaultsRegistry.sol';
 import {Errors} from '@stakewise-core/libraries/Errors.sol';
 import {ITokensConverterFactory} from './interfaces/ITokensConverterFactory.sol';
 import {IBaseTokensConverter} from './interfaces/IBaseTokensConverter.sol';
@@ -14,19 +13,17 @@ import {IBaseTokensConverter} from './interfaces/IBaseTokensConverter.sol';
  * @notice Factory for deploying TokensConverter contracts
  */
 contract TokensConverterFactory is ITokensConverterFactory {
-    IVaultsRegistry internal immutable _vaultsRegistry;
-
     /// @inheritdoc ITokensConverterFactory
     address public immutable implementation;
 
     /**
      * @dev Constructor
      * @param _implementation The implementation address of TokensConverter contract
-     * @param vaultsRegistry The address of the VaultsRegistry contract
      */
-    constructor(address _implementation, address vaultsRegistry) {
+    constructor(
+        address _implementation
+    ) {
         implementation = _implementation;
-        _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
     }
 
     /// @inheritdoc ITokensConverterFactory
@@ -41,8 +38,13 @@ contract TokensConverterFactory is ITokensConverterFactory {
     function createConverter(
         address vault
     ) external returns (address converter) {
-        if (vault == address(0) || !_vaultsRegistry.vaults(vault)) {
+        if (vault == address(0)) {
             revert Errors.InvalidVault();
+        }
+
+        converter = getTokensConverter(vault);
+        if (converter.code.length > 0) {
+            return converter;
         }
         converter = Clones.cloneDeterministic(implementation, bytes32(uint256(uint160(vault))));
 

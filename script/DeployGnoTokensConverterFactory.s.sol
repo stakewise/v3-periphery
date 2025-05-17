@@ -13,16 +13,16 @@ contract DeployGnoTokensConverterFactory is Script {
         address composableCoW;
         address assetToken;
         address relayer;
-        address vaultsRegistry;
         address savingsXDaiAdapter;
+        address sDaiToken;
     }
 
     function _readEnvVariables() internal view returns (ConfigParams memory params) {
         params.composableCoW = vm.envAddress('COMPOSABLE_COW');
         params.assetToken = vm.envAddress('ASSET_TOKEN');
         params.relayer = vm.envAddress('COWSWAP_RELAYER');
-        params.vaultsRegistry = vm.envAddress('VAULTS_REGISTRY');
         params.savingsXDaiAdapter = vm.envAddress('SAVINGS_XDAI_ADAPTER');
+        params.sDaiToken = vm.envAddress('SDAI_TOKEN');
     }
 
     function run() external {
@@ -42,11 +42,12 @@ contract DeployGnoTokensConverterFactory is Script {
             address(swapOrderHandler),
             params.assetToken,
             params.relayer,
-            params.savingsXDaiAdapter
+            params.savingsXDaiAdapter,
+            params.sDaiToken
         );
 
         // Deploy tokens converter factory.
-        TokensConverterFactory factory = new TokensConverterFactory(address(implementation), params.vaultsRegistry);
+        TokensConverterFactory factory = new TokensConverterFactory(address(implementation));
         console.log('TokensConverterFactory deployed at: ', address(factory));
 
         vm.stopBroadcast();

@@ -15,6 +15,7 @@ import {BaseTokensConverter, IBaseTokensConverter} from './BaseTokensConverter.s
  */
 contract GnoTokensConverter is BaseTokensConverter {
     ISavingsXDaiAdapter private immutable _savingsXDaiAdapter;
+    address private immutable _sDaiToken;
 
     /**
      * @dev Constructor
@@ -23,14 +24,17 @@ contract GnoTokensConverter is BaseTokensConverter {
      * @param assetToken The address of the GNO token
      * @param relayer The address of the Cowswap relayer contract
      * @param savingsXDaiAdapter The address of the SavingsXDaiAdapter contract
+     * @param sDaiToken The address of the sDAI token
      */
     constructor(
         address composableCoW,
         address swapOrderHandler,
         address assetToken,
         address relayer,
-        address savingsXDaiAdapter
+        address savingsXDaiAdapter,
+        address sDaiToken
     ) BaseTokensConverter(composableCoW, swapOrderHandler, assetToken, relayer) {
+        _sDaiToken = sDaiToken;
         _savingsXDaiAdapter = ISavingsXDaiAdapter(savingsXDaiAdapter);
     }
 
@@ -50,16 +54,23 @@ contract GnoTokensConverter is BaseTokensConverter {
         }
     }
 
-    /// @inheritdoc IBaseTokensConverter
-    function createSwapOrders(
-        address[] calldata tokens
-    ) public override {
-        // convert xDAI to sDAI
+    /**
+     * @notice Function for creating swap orders with xDAI
+     * @dev This function is used to convert xDAI to sDAI and create a swap order
+     */
+    function createXDaiSwapOrder() external payable {
         uint256 balance = address(this).balance;
-        if (balance > 0) {
-            _savingsXDaiAdapter.depositXDAI{value: balance}(address(this));
+        if (balance < 0.1 ether) {
+            return;
         }
-        super.createSwapOrders(tokens);
+
+        // convert xDAI to sDAI
+        _savingsXDaiAdapter.depositXDAI{value: balance}(address(this));
+
+        // create swap orders for the tokens converter
+        address[] memory tokens = new address[](1);
+        tokens[0] = _sDaiToken;
+        createSwapOrders(tokens);
     }
 
     /**

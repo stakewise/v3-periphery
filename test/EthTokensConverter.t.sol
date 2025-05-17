@@ -61,23 +61,21 @@ contract EthTokensConverterTest is EthHelpers {
         implementation = new EthTokensConverter(composableCoW, address(swapOrderHandler), weth, relayer);
 
         // Deploy factory
-        factory = new TokensConverterFactory(address(implementation), address(contracts.vaultsRegistry));
+        factory = new TokensConverterFactory(address(implementation));
 
         // Create converter for the vault
         converter = EthTokensConverter(payable(factory.createConverter(vault)));
     }
 
     function test_createConverter_failsForInvalidVault() public {
-        // Create an invalid vault (not registered)
-        address invalidVault = makeAddr('invalidVault');
-
-        // Expect revert on converter creation
-        vm.expectRevert(Errors.InvalidVault.selector);
-        factory.createConverter(invalidVault);
-
         // Expect revert on converter creation
         vm.expectRevert(Errors.InvalidVault.selector);
         factory.createConverter(address(0));
+    }
+
+    function test_createConverter_returnsConverterIfExists() public {
+        address converter2 = factory.createConverter(vault);
+        assertEq(converter2, address(converter), 'Converter address mismatch');
     }
 
     function test_createSwapOrders_invalidToken() public {
