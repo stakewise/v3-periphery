@@ -50,7 +50,7 @@ abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeab
     /// @inheritdoc IBaseTokensConverter
     function createSwapOrders(
         address[] memory tokens
-    ) public virtual nonReentrant {
+    ) public nonReentrant {
         address token;
         SwapOrderHandler.Data memory order;
         IConditionalOrder.ConditionalOrderParams memory orderParams;
