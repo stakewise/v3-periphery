@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 
 import {Script} from 'forge-std/Script.sol';
 import {console} from 'forge-std/console.sol';
-import {Upgrades, Options} from '@openzeppelin/foundry-upgrades/Upgrades.sol';
+import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 import {BalancerVaultMock} from '../src/mocks/BalancerVaultMock.sol';
 
 contract DeployBalancerVaultMock is Script {
@@ -31,14 +31,10 @@ contract DeployBalancerVaultMock is Script {
         ConfigParams memory params = _readEnvVariables();
 
         // Deploy BalancerVaultMock mock.
-        Options memory balancerVaultMockOpts;
-        balancerVaultMockOpts.constructorData =
-            abi.encode(params.osToken, params.assetToken, params.osTokenVaultController);
-        address balancerVaultMock = Upgrades.deployUUPSProxy(
-            'BalancerVaultMock.sol',
-            abi.encodeCall(BalancerVaultMock.initialize, (params.governor)),
-            balancerVaultMockOpts
-        );
+        address implementation =
+            address(new BalancerVaultMock(params.osToken, params.assetToken, params.osTokenVaultController));
+        address balancerVaultMock = address(new ERC1967Proxy(implementation, ''));
+        BalancerVaultMock(balancerVaultMock).initialize(params.governor);
         console.log('BalancerVaultMock deployed at: ', balancerVaultMock);
 
         vm.stopBroadcast();

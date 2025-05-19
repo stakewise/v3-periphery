@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 
 import {Script} from 'forge-std/Script.sol';
 import {console} from 'forge-std/console.sol';
-import {Upgrades, Options} from '@openzeppelin/foundry-upgrades/Upgrades.sol';
+import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 import {AaveMock} from '../src/mocks/AaveMock.sol';
 import {AaveOsTokenMock} from '../src/mocks/AaveOsTokenMock.sol';
 import {AaveVarDebtAssetTokenMock} from '../src/mocks/AaveVarDebtAssetTokenMock.sol';
@@ -35,31 +35,21 @@ contract DeployAaveMock is Script {
         ConfigParams memory params = _readEnvVariables();
 
         // Deploy Aave mock.
-        Options memory aaveMockOpts;
-        aaveMockOpts.constructorData = abi.encode(params.osToken, params.assetToken, params.osTokenVaultController);
-        address aaveMock = Upgrades.deployUUPSProxy(
-            'AaveMock.sol',
-            abi.encodeCall(AaveMock.initialize, (params.governor, params.varInterestRatePerSecond)),
-            aaveMockOpts
-        );
+        address implementation = address(new AaveMock(params.osToken, params.assetToken, params.osTokenVaultController));
+        address aaveMock = address(new ERC1967Proxy(implementation, ''));
+        AaveMock(aaveMock).initialize(params.governor, params.varInterestRatePerSecond);
         console.log('AaveMock deployed at: ', aaveMock);
 
         // Deploy Aave OsToken mock.
-        Options memory aaveOsTokenMockOpts;
-        aaveOsTokenMockOpts.constructorData = abi.encode(aaveMock);
-        address aaveOsTokenMock = Upgrades.deployUUPSProxy(
-            'AaveOsTokenMock.sol', abi.encodeCall(AaveOsTokenMock.initialize, (params.governor)), aaveOsTokenMockOpts
-        );
+        implementation = address(new AaveOsTokenMock(aaveMock));
+        address aaveOsTokenMock = address(new ERC1967Proxy(implementation, ''));
+        AaveOsTokenMock(aaveOsTokenMock).initialize(params.governor);
         console.log('AaveOsTokenMock deployed at: ', aaveOsTokenMock);
 
         // Deploy Aave VarDebtAssetToken mock.
-        Options memory aaveVarDebtAssetTokenMockOpts;
-        aaveVarDebtAssetTokenMockOpts.constructorData = abi.encode(aaveMock);
-        address aaveVarDebtAssetTokenMock = Upgrades.deployUUPSProxy(
-            'AaveVarDebtAssetTokenMock.sol',
-            abi.encodeCall(AaveVarDebtAssetTokenMock.initialize, (params.governor)),
-            aaveVarDebtAssetTokenMockOpts
-        );
+        implementation = address(new AaveVarDebtAssetTokenMock(aaveMock));
+        address aaveVarDebtAssetTokenMock = address(new ERC1967Proxy(implementation, ''));
+        AaveVarDebtAssetTokenMock(aaveVarDebtAssetTokenMock).initialize(params.governor);
         console.log('AaveVarDebtAssetTokenMock deployed at: ', address(aaveVarDebtAssetTokenMock));
 
         vm.stopBroadcast();

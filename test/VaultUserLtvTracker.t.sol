@@ -44,19 +44,21 @@ contract VaultUserLtvTrackerTest is Test {
         vm.createSelectFork(vm.envString('MAINNET_RPC_URL'), forkBlockNumber);
 
         // create vault
-        vaultImpl = address(
-            new EthVault(
-                keeper,
-                vaultsRegistry,
-                validatorsRegistry,
-                osTokenVaultController,
-                osTokenConfig,
-                osTokenVaultEscrow,
-                sharedMevEscrow,
-                depositDataRegistry,
-                exitingAssetsClaimDelay
-            )
-        );
+        IEthVault.EthVaultConstructorArgs memory constructorArgs = IEthVault.EthVaultConstructorArgs({
+            keeper: keeper,
+            vaultsRegistry: vaultsRegistry,
+            validatorsRegistry: validatorsRegistry,
+            validatorsWithdrawals: address(0),
+            validatorsConsolidations: address(0),
+            consolidationsChecker: address(0),
+            osTokenVaultController: osTokenVaultController,
+            osTokenConfig: osTokenConfig,
+            osTokenVaultEscrow: osTokenVaultEscrow,
+            sharedMevEscrow: sharedMevEscrow,
+            depositDataRegistry: depositDataRegistry,
+            exitingAssetsClaimDelay: uint64(exitingAssetsClaimDelay)
+        });
+        vaultImpl = address(new EthVault(constructorArgs));
         vaultFactory = address(new EthVaultFactory(vaultImpl, IVaultsRegistry(vaultsRegistry)));
 
         vm.startPrank(VaultsRegistry(vaultsRegistry).owner());

@@ -167,10 +167,6 @@ contract BoostHelpersTest is Test {
         IBoostHelpers.BoostDetails memory details = boostHelpers.getBoostDetails(
             boostUser.user, boostUser.vault, boostUser.harvestParams, boostUser.exitRequest
         );
-        emit log_named_uint('boostUser osTokenShares', details.osTokenShares);
-        emit log_named_uint('boostUser assets', details.assets);
-        emit log_named_uint('boostUser borrowLtv', details.borrowLtv);
-        emit log_named_uint('boostUser osTokenLtv', details.osTokenLtv);
 
         assertEq(details.osTokenShares, boostUser.expectedOsTokenShares, 'boostUser osTokenShares mismatch');
         assertEq(details.assets, boostUser.expectedAssets, 'boostUser assets mismatch');
@@ -183,7 +179,6 @@ contract BoostHelpersTest is Test {
         );
         uint256 convertedShares = IOsTokenVaultController(osTokenCtrl).convertToShares(boostUser.expectedAssets);
         uint256 expectedTotalShares = boostUser.expectedOsTokenShares + convertedShares;
-        emit log_named_uint('boostUser total shares', totalShares);
         assertEq(totalShares, expectedTotalShares, 'boostUser total shares mismatch');
     }
 
@@ -191,10 +186,6 @@ contract BoostHelpersTest is Test {
         IBoostHelpers.BoostDetails memory details = boostHelpers.getBoostDetails(
             unboostUser.user, unboostUser.vault, unboostUser.harvestParams, unboostUser.exitRequest
         );
-        emit log_named_uint('unboostUser osTokenShares', details.osTokenShares);
-        emit log_named_uint('unboostUser assets', details.assets);
-        emit log_named_uint('unboostUser borrowLtv', details.borrowLtv);
-        emit log_named_uint('unboostUser osTokenLtv', details.osTokenLtv);
 
         assertEq(details.osTokenShares, unboostUser.expectedOsTokenShares, 'unboostUser osTokenShares mismatch');
         assertEq(details.assets, unboostUser.expectedAssets, 'unboostUser assets mismatch');
@@ -206,7 +197,6 @@ contract BoostHelpersTest is Test {
         );
         uint256 convertedShares = IOsTokenVaultController(osTokenCtrl).convertToShares(unboostUser.expectedAssets);
         uint256 expectedTotalShares = unboostUser.expectedOsTokenShares + convertedShares;
-        emit log_named_uint('unboostUser total shares', totalShares);
         assertEq(totalShares, expectedTotalShares, 'unboostUser total shares mismatch');
 
         TestUser memory invalidExitRequest = unboostUser;
@@ -227,10 +217,6 @@ contract BoostHelpersTest is Test {
             notHarvestedVaultUser.harvestParams,
             notHarvestedVaultUser.exitRequest
         );
-        emit log_named_uint('notHarvestedVaultUser osTokenShares', details.osTokenShares);
-        emit log_named_uint('notHarvestedVaultUser assets', details.assets);
-        emit log_named_uint('notHarvestedVaultUser borrowLtv', details.borrowLtv);
-        emit log_named_uint('notHarvestedVaultUser osTokenLtv', details.osTokenLtv);
 
         assertEq(
             details.osTokenShares,
@@ -252,7 +238,6 @@ contract BoostHelpersTest is Test {
         uint256 convertedShares =
             IOsTokenVaultController(osTokenCtrl).convertToShares(notHarvestedVaultUser.expectedAssets);
         uint256 expectedTotalShares = notHarvestedVaultUser.expectedOsTokenShares + convertedShares;
-        emit log_named_uint('notHarvestedVaultUser total shares', totalShares);
         assertEq(totalShares, expectedTotalShares, 'notHarvestedVaultUser total shares mismatch');
     }
 
@@ -263,10 +248,6 @@ contract BoostHelpersTest is Test {
             noBoostPositionUser.harvestParams,
             noBoostPositionUser.exitRequest
         );
-        emit log_named_uint('noBoostPositionUser osTokenShares', details.osTokenShares);
-        emit log_named_uint('noBoostPositionUser assets', details.assets);
-        emit log_named_uint('noBoostPositionUser borrowLtv', details.borrowLtv);
-        emit log_named_uint('noBoostPositionUser osTokenLtv', details.osTokenLtv);
 
         assertEq(
             details.osTokenShares,
@@ -285,10 +266,6 @@ contract BoostHelpersTest is Test {
             withdrawnPositionUser.harvestParams,
             withdrawnPositionUser.exitRequest
         );
-        emit log_named_uint('withdrawnPositionUser osTokenShares', details.osTokenShares);
-        emit log_named_uint('withdrawnPositionUser assets', details.assets);
-        emit log_named_uint('withdrawnPositionUser borrowLtv', details.borrowLtv);
-        emit log_named_uint('withdrawnPositionUser osTokenLtv', details.osTokenLtv);
 
         assertEq(
             details.osTokenShares,
