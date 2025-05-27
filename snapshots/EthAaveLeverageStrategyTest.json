@@ -1,7 +1,7 @@
 {
   "EthAaveLeverageStrategyTest_test_claimExitedAssets1": "576740",
-  "EthAaveLeverageStrategyTest_test_claimExitedAssets2": "1060815",
-  "EthAaveLeverageStrategyTest_test_claimExitedAssets3": "1061559",
+  "EthAaveLeverageStrategyTest_test_claimExitedAssets2": "1060852",
+  "EthAaveLeverageStrategyTest_test_claimExitedAssets3": "1061596",
   "EthAaveLeverageStrategyTest_test_deposit_HasPosition": "783164",
   "EthAaveLeverageStrategyTest_test_deposit_NoPosition": "907294",
   "EthAaveLeverageStrategyTest_test_enterExitQueue": "229986",
