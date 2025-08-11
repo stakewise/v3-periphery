@@ -124,6 +124,13 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     event LendingAssetsRescued(address indexed vault, address indexed user, uint256 osTokenShares, uint256 assets);
 
     /**
+     * @notice Event emitted when the strategy proxy is set to exiting state
+     * @param proxy The address of the strategy proxy
+     * @param isExiting True if the proxy is exiting, false otherwise
+     */
+    event StrategyProxyExitingUpdated(address indexed proxy, bool isExiting);
+
+    /**
      * @notice Get the strategy proxy address
      * @param vault The address of the vault
      * @param user The address of the user
@@ -257,6 +264,14 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param maxSlippagePercent The maximum slippage percent
      */
     function rescueLendingAssets(address vault, uint256 assets, uint256 maxSlippagePercent) external;
+
+    /**
+     * @notice Set the strategy proxy exiting state. Can only be called by the proxy owner, i.e. previous strategy.
+     * @param proxy The address of the strategy proxy
+     */
+    function setStrategyProxyExiting(
+        address proxy
+    ) external;
 
     /**
      * @notice Upgrade the strategy proxy. Can only be called by the proxy owner.

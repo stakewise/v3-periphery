@@ -39,7 +39,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     string internal constant _borrowForceExitLtvPercentConfigName = 'borrowForceExitLtvPercent';
     string internal constant _rescueVaultConfigName = 'rescueVault';
     string internal constant _balancerPoolIdConfigName = 'balancerPoolId';
-    string internal constant _vaultUpgradeConfigName = 'upgradeV1';
+    string internal constant _strategyUpgradeConfigName = 'upgradeV2';
 
     // Strategy
     IStrategiesRegistry internal immutable _strategiesRegistry;
@@ -408,16 +408,30 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     }
 
     /// @inheritdoc ILeverageStrategy
+    function setStrategyProxyExiting(
+        address proxy
+    ) external {
+        if (!_strategiesRegistry.strategies(msg.sender)) {
+            revert Errors.AccessDenied();
+        }
+        if (isStrategyProxyExiting[proxy]) {
+            revert Errors.ValueNotChanged();
+        }
+        isStrategyProxyExiting[proxy] = true;
+        emit StrategyProxyExitingUpdated(proxy, true);
+    }
+
+    /// @inheritdoc ILeverageStrategy
     function upgradeProxy(
         address vault
     ) external {
         // fetch strategy proxy
         address proxy = getStrategyProxy(vault, msg.sender);
-        if (isStrategyProxyExiting[proxy]) revert Errors.ExitRequestNotProcessed();
         if (!_strategiesRegistry.strategyProxies(proxy)) revert Errors.AccessDenied();
 
         // check whether there is a new version for the current strategy
-        bytes memory vaultUpgradeConfig = _strategiesRegistry.getStrategyConfig(strategyId(), _vaultUpgradeConfigName);
+        bytes memory vaultUpgradeConfig =
+            _strategiesRegistry.getStrategyConfig(strategyId(), _strategyUpgradeConfigName);
         if (vaultUpgradeConfig.length == 0) {
             revert Errors.UpgradeFailed();
         }
@@ -426,6 +440,10 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         address newStrategy = abi.decode(vaultUpgradeConfig, (address));
         if (newStrategy == address(0) || newStrategy == address(this)) {
             revert Errors.ValueNotChanged();
+        }
+
+        if (isStrategyProxyExiting[proxy]) {
+            ILeverageStrategy(newStrategy).setStrategyProxyExiting(proxy);
         }
 
         // migrate strategy
