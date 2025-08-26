@@ -124,13 +124,6 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     event LendingAssetsRescued(address indexed vault, address indexed user, uint256 osTokenShares, uint256 assets);
 
     /**
-     * @notice Event emitted when the strategy proxy is set to exiting state
-     * @param proxy The address of the strategy proxy
-     * @param isExiting True if the proxy is exiting, false otherwise
-     */
-    event StrategyProxyExitingUpdated(address indexed proxy, bool isExiting);
-
-    /**
      * @notice Get the strategy proxy address
      * @param vault The address of the vault
      * @param user The address of the user

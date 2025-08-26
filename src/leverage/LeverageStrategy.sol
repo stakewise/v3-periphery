@@ -418,7 +418,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
             revert Errors.ValueNotChanged();
         }
         isStrategyProxyExiting[proxy] = true;
-        emit StrategyProxyExitingUpdated(proxy, true);
     }
 
     /// @inheritdoc ILeverageStrategy

@@ -1023,9 +1023,6 @@ contract EthAaveLeverageStrategyTest is Test {
         vm.assertFalse(ILeverageStrategy(newStrategy).isStrategyProxyExiting(strategyProxy), 'StrategyProxy is exiting');
         vm.assertTrue(ILeverageStrategy(strategy).isStrategyProxyExiting(strategyProxy), 'StrategyProxy is not exiting');
 
-        vm.expectEmit(true, true, true, true, newStrategy);
-        emit ILeverageStrategy.StrategyProxyExitingUpdated(strategyProxy, true);
-
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.StrategyProxyUpgraded(vault, address(this), newStrategy);
 

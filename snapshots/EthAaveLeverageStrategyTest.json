@@ -11,6 +11,6 @@
   "EthAaveLeverageStrategyTest_test_rescueLendingAssets1": "667921",
   "EthAaveLeverageStrategyTest_test_rescueLendingAssets2": "570122",
   "EthAaveLeverageStrategyTest_test_rescueVaultAssets": "656223",
-  "EthAaveLeverageStrategyTest_test_upgradeProxy_withExitingPosition": "88036",
+  "EthAaveLeverageStrategyTest_test_upgradeProxy_withExitingPosition": "86592",
   "EthAaveLeverageStrategyTest_test_upgradeProxy_withoutExitingPosition": "57788"
 }
