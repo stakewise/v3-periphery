@@ -6,6 +6,9 @@ optimizer_runs = 200
 via_ir = true
 bytecode_hash = 'none'
 
+[lint]
+lint_on_build = false
+
 [fmt] # See https://book.getfoundry.sh/reference/config/formatter
 single_line_statement_block = "preserve"
 multiline_func_header = "params_first"
