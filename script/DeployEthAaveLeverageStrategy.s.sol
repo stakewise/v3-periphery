@@ -23,6 +23,7 @@ contract DeployEthAaveLeverageStrategy is Script {
         address rescueVault;
         address governor;
         address strategiesRegistry;
+        address strategyProxyImplementation;
         uint256 maxVaultLtvPercent;
         uint256 maxBorrowLtvPercent;
         uint256 vaultForceExitLtvPercent;
@@ -49,6 +50,7 @@ contract DeployEthAaveLeverageStrategy is Script {
         params.balancerPoolId = vm.envUint('BALANCER_POOL_ID');
         params.governor = vm.envAddress('GOVERNOR');
         params.strategiesRegistry = vm.envAddress('STRATEGIES_REGISTRY');
+        params.strategyProxyImplementation = vm.envAddress('STRATEGY_PROXY_IMPLEMENTATION');
     }
 
     function run() external {
@@ -59,13 +61,6 @@ contract DeployEthAaveLeverageStrategy is Script {
         // Read environment variables.
         ConfigParams memory params = _readEnvVariables();
 
-        // Load strategies registry.
-        StrategiesRegistry strategiesRegistry = StrategiesRegistry(params.strategiesRegistry);
-
-        // Deploy strategy proxy implementation.
-        StrategyProxy strategyProxyImpl = new StrategyProxy();
-        console.log('StrategyProxy implementation deployed at: ', address(strategyProxyImpl));
-
         // Deploy EthAaveLeverageStrategy.
         EthAaveLeverageStrategy strategy = new EthAaveLeverageStrategy(
             params.osToken,
@@ -75,31 +70,13 @@ contract DeployEthAaveLeverageStrategy is Script {
             params.osTokenFlashLoans,
             params.osTokenVaultEscrow,
             params.strategiesRegistry,
-            address(strategyProxyImpl),
+            params.strategyProxyImplementation,
             params.balancerVault,
             params.aavePool,
             params.aaveOsToken,
             params.aaveVarDebtAssetToken
         );
         console.log('EthAaveLeverageStrategy deployed at: ', address(strategy));
-
-        strategiesRegistry.setStrategy(address(strategy), true);
-        strategiesRegistry.setStrategyConfig(
-            strategy.strategyId(), 'maxVaultLtvPercent', abi.encode(params.maxVaultLtvPercent)
-        );
-        strategiesRegistry.setStrategyConfig(
-            strategy.strategyId(), 'maxBorrowLtvPercent', abi.encode(params.maxBorrowLtvPercent)
-        );
-        strategiesRegistry.setStrategyConfig(
-            strategy.strategyId(), 'vaultForceExitLtvPercent', abi.encode(params.vaultForceExitLtvPercent)
-        );
-        strategiesRegistry.setStrategyConfig(
-            strategy.strategyId(), 'borrowForceExitLtvPercent', abi.encode(params.borrowForceExitLtvPercent)
-        );
-        strategiesRegistry.setStrategyConfig(strategy.strategyId(), 'rescueVault', abi.encode(params.rescueVault));
-        strategiesRegistry.setStrategyConfig(strategy.strategyId(), 'balancerPoolId', abi.encode(params.balancerPoolId));
-        strategiesRegistry.initialize(params.governor);
-
         vm.stopBroadcast();
     }
 }

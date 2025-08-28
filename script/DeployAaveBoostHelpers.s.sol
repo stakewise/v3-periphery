@@ -9,18 +9,22 @@ import {BoostHelpers} from '../src/BoostHelpers.sol';
 contract DeployAaveBoostHelpers is Script {
     struct ConfigParams {
         address keeper;
-        address leverageStrategy;
+        address leverageStrategyV1;
+        address strategiesRegistry;
         address osTokenVaultController;
         address osTokenVaultEscrow;
         address sharedMevEscrow;
+        address strategyProxyImplementation;
     }
 
     function _readEnvVariables() internal view returns (ConfigParams memory params) {
         params.keeper = vm.envAddress('KEEPER');
-        params.leverageStrategy = vm.envAddress('AAVE_LEVERAGE_STRATEGY');
+        params.leverageStrategyV1 = vm.envAddress('AAVE_LEVERAGE_STRATEGY_V1');
+        params.strategiesRegistry = vm.envAddress('STRATEGIES_REGISTRY');
         params.osTokenVaultController = vm.envAddress('OS_TOKEN_VAULT_CONTROLLER');
         params.osTokenVaultEscrow = vm.envAddress('OS_TOKEN_VAULT_ESCROW');
         params.sharedMevEscrow = vm.envAddress('SHARED_MEV_ESCROW');
+        params.strategyProxyImplementation = vm.envAddress('STRATEGY_PROXY_IMPLEMENTATION');
     }
 
     function run() external {
@@ -34,10 +38,12 @@ contract DeployAaveBoostHelpers is Script {
         // Deploy BoostHelpers.
         BoostHelpers boostHelpers = new BoostHelpers(
             params.keeper,
-            params.leverageStrategy,
+            params.leverageStrategyV1,
+            params.strategiesRegistry,
             params.osTokenVaultController,
             params.osTokenVaultEscrow,
-            params.sharedMevEscrow
+            params.sharedMevEscrow,
+            params.strategyProxyImplementation
         );
         console.log('Aave BoostHelpers deployed at: ', address(boostHelpers));
 

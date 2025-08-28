@@ -5,7 +5,7 @@ pragma solidity ^0.8.26;
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IPool} from '@aave-core/interfaces/IPool.sol';
 import {IScaledBalanceToken} from '@aave-core/interfaces/IScaledBalanceToken.sol';
-import {WadRayMath} from '@aave-core/protocol/libraries/math/WadRayMath.sol';
+import {TokenMath} from '@aave-core/protocol/libraries/helpers/TokenMath.sol';
 import {IStrategyProxy} from '../interfaces/IStrategyProxy.sol';
 import {LeverageStrategy, ILeverageStrategy} from './LeverageStrategy.sol';
 
@@ -88,13 +88,13 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
         suppliedOsTokenShares = _aaveOsToken.scaledBalanceOf(proxy);
         if (suppliedOsTokenShares != 0) {
             uint256 normalizedIncome = _aavePool.getReserveNormalizedIncome(address(_osToken));
-            suppliedOsTokenShares = WadRayMath.rayMul(suppliedOsTokenShares, normalizedIncome);
+            suppliedOsTokenShares = TokenMath.getATokenBalance(suppliedOsTokenShares, normalizedIncome);
         }
 
         borrowedAssets = _aaveVarDebtAssetToken.scaledBalanceOf(proxy);
         if (borrowedAssets != 0) {
             uint256 normalizedDebt = _aavePool.getReserveNormalizedVariableDebt(address(_assetToken));
-            borrowedAssets = WadRayMath.rayMul(borrowedAssets, normalizedDebt);
+            borrowedAssets = TokenMath.getVTokenBalance(borrowedAssets, normalizedDebt);
         }
     }
 
