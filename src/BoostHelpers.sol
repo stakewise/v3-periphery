@@ -7,7 +7,6 @@ import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {Strings} from '@openzeppelin/contracts/utils/Strings.sol';
 import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
-import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
 import {IKeeperRewards} from '@stakewise-core/interfaces/IKeeperRewards.sol';
 import {IVaultState} from '@stakewise-core/interfaces/IVaultState.sol';
@@ -100,7 +99,7 @@ contract BoostHelpers is IBoostHelpers {
     function getProxyLeverageStrategy(
         address proxy
     ) public view returns (ILeverageStrategy) {
-        if (Address.isContract(proxy)) {
+        if (proxy.code.length > 0) {
             try Ownable(proxy).owner() returns (address owner) {
                 return ILeverageStrategy(owner);
             } catch {}
