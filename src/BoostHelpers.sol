@@ -4,6 +4,10 @@ pragma solidity ^0.8.26;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {Strings} from '@openzeppelin/contracts/utils/Strings.sol';
+import {Clones} from '@openzeppelin/contracts/proxy/Clones.sol';
+import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
 import {IKeeperRewards} from '@stakewise-core/interfaces/IKeeperRewards.sol';
 import {IVaultState} from '@stakewise-core/interfaces/IVaultState.sol';
@@ -12,6 +16,7 @@ import {IVaultEnterExit} from '@stakewise-core/interfaces/IVaultEnterExit.sol';
 import {IVaultMev} from '@stakewise-core/interfaces/IVaultMev.sol';
 import {Errors} from '@stakewise-core/libraries/Errors.sol';
 import {ILeverageStrategy} from './leverage/interfaces/ILeverageStrategy.sol';
+import {IStrategiesRegistry} from './interfaces/IStrategiesRegistry.sol';
 import {IBoostHelpers} from './interfaces/IBoostHelpers.sol';
 
 /**
@@ -23,31 +28,40 @@ contract BoostHelpers is IBoostHelpers {
     uint256 private constant _wad = 1e18;
 
     address private immutable _sharedMevEscrow;
+    address private immutable _strategyProxyImplementation;
+
+    ILeverageStrategy private immutable _leverageStrategyV1;
+    IStrategiesRegistry private immutable _strategiesRegistry;
     IKeeperRewards private immutable _keeper;
-    ILeverageStrategy private immutable _leverageStrategy;
     IOsTokenVaultController private immutable _osTokenCtrl;
     IOsTokenVaultEscrow private immutable _osTokenEscrow;
 
     /**
      * @dev Constructor
      * @param keeper The address of the Keeper contract
-     * @param leverageStrategy The address of the LeverageStrategy contract
+     * @param leverageStrategyV1 The address of the LeverageStrategy V1 contract
+     * @param strategyRegistry The address of the StrategiesRegistry contract
      * @param osTokenCtrl The address of the OsTokenVaultController contract
      * @param osTokenEscrow The address of the OsTokenVaultEscrow contract
      * @param sharedMevEscrow The address of the SharedMevEscrow contract
+     * @param strategyProxyImplementation The address of the LeverageStrategy proxy implementation contract
      */
     constructor(
         address keeper,
-        address leverageStrategy,
+        address leverageStrategyV1,
+        address strategyRegistry,
         address osTokenCtrl,
         address osTokenEscrow,
-        address sharedMevEscrow
+        address sharedMevEscrow,
+        address strategyProxyImplementation
     ) {
         _keeper = IKeeperRewards(keeper);
-        _leverageStrategy = ILeverageStrategy(leverageStrategy);
+        _leverageStrategyV1 = ILeverageStrategy(leverageStrategyV1);
+        _strategiesRegistry = IStrategiesRegistry(strategyRegistry);
         _osTokenCtrl = IOsTokenVaultController(osTokenCtrl);
         _osTokenEscrow = IOsTokenVaultEscrow(osTokenEscrow);
         _sharedMevEscrow = sharedMevEscrow;
+        _strategyProxyImplementation = strategyProxyImplementation;
     }
 
     /// @inheritdoc IBoostHelpers
@@ -71,6 +85,42 @@ contract BoostHelpers is IBoostHelpers {
         return _calculateBoost(user, vault, harvestParams, exitRequest);
     }
 
+    /// @inheritdoc IBoostHelpers
+    function getStrategyProxy(address vault, address user) public view returns (address proxy) {
+        // check whether strategy proxy exists
+        bytes32 strategyProxyId = keccak256(abi.encode(_leverageStrategyV1.strategyId(), vault, user));
+        proxy = _strategiesRegistry.strategyProxyIdToProxy(strategyProxyId);
+        if (proxy == address(0)) {
+            // calculate the proxy address
+            return Clones.predictDeterministicAddress(_strategyProxyImplementation, strategyProxyId);
+        }
+    }
+
+    /// @inheritdoc IBoostHelpers
+    function getProxyLeverageStrategy(
+        address proxy
+    ) public view returns (ILeverageStrategy) {
+        if (Address.isContract(proxy)) {
+            try Ownable(proxy).owner() returns (address owner) {
+                return ILeverageStrategy(owner);
+            } catch {}
+        }
+
+        bytes32 strategyId = _leverageStrategyV1.strategyId();
+        string memory configNamePrefix = 'upgradeV';
+        address latestStrategy = address(_leverageStrategyV1);
+        for (uint256 i = 1; i < type(uint256).max; i++) {
+            string memory configName = string.concat(configNamePrefix, Strings.toString(i));
+            bytes memory _latestStrategy = _strategiesRegistry.getStrategyConfig(strategyId, configName);
+            if (_latestStrategy.length == 0) {
+                break;
+            }
+            latestStrategy = abi.decode(_latestStrategy, (address));
+        }
+
+        return ILeverageStrategy(latestStrategy);
+    }
+
     /**
      * @dev Calculate the boost details
      * @param user The address of the user
@@ -92,17 +142,20 @@ contract BoostHelpers is IBoostHelpers {
             }
             IVaultState(vault).updateState(harvestParams);
         }
-        address proxy = _leverageStrategy.getStrategyProxy(vault, user);
-        (uint256 borrowedAssets, uint256 suppliedOsTokenShares) = _leverageStrategy.getBorrowState(proxy);
-        (uint256 stakedAssets, uint256 mintedOsTokenShares) = _leverageStrategy.getVaultState(vault, proxy);
+        address proxy = getStrategyProxy(vault, user);
+        ILeverageStrategy leverageStrategy = getProxyLeverageStrategy(proxy);
+        (uint256 borrowedAssets, uint256 suppliedOsTokenShares) = leverageStrategy.getBorrowState(proxy);
+        (uint256 stakedAssets, uint256 mintedOsTokenShares) = leverageStrategy.getVaultState(vault, proxy);
 
-        (uint256 exitingOsTokenShares, uint256 exitingAssets) = _getExitRequestState(vault, proxy, exitRequest);
-        mintedOsTokenShares += exitingOsTokenShares;
-        stakedAssets += exitingAssets;
+        if (leverageStrategy.isStrategyProxyExiting(proxy)) {
+            (uint256 exitingOsTokenShares, uint256 exitingAssets) = _getExitRequestState(vault, proxy, exitRequest);
+            mintedOsTokenShares += exitingOsTokenShares;
+            stakedAssets += exitingAssets;
+        }
 
         if (borrowedAssets >= stakedAssets) {
             uint256 leftOsTokenAssets =
-                Math.mulDiv(borrowedAssets - stakedAssets, _wad, _leverageStrategy.getBorrowLtv());
+                Math.mulDiv(borrowedAssets - stakedAssets, _wad, leverageStrategy.getBorrowLtv());
             int256 _osTokenShares = SafeCast.toInt256(suppliedOsTokenShares) - SafeCast.toInt256(mintedOsTokenShares)
                 - SafeCast.toInt256(_osTokenCtrl.convertToShares(leftOsTokenAssets));
             boost.osTokenShares = _osTokenShares < 0 ? 0 : SafeCast.toUint256(_osTokenShares);
@@ -134,10 +187,6 @@ contract BoostHelpers is IBoostHelpers {
         address proxy,
         ExitRequest calldata exitRequest
     ) private view returns (uint256 osTokenShares, uint256 assets) {
-        if (!_leverageStrategy.isStrategyProxyExiting(proxy)) {
-            return (0, 0);
-        }
-
         address owner;
         uint256 exitedAssets;
         (owner, exitedAssets, osTokenShares) = _osTokenEscrow.getPosition(vault, exitRequest.positionTicket);

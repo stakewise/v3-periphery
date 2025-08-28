@@ -3,6 +3,7 @@
 pragma solidity ^0.8.26;
 
 import {IKeeperRewards} from '@stakewise-core/interfaces/IKeeperRewards.sol';
+import {ILeverageStrategy} from '../leverage/interfaces/ILeverageStrategy.sol';
 
 /**
  * @title IBoostHelpers
@@ -33,6 +34,23 @@ interface IBoostHelpers {
         uint256 borrowLtv;
         uint256 osTokenLtv;
     }
+
+    /**
+     * @notice Get the strategy proxy address for a given vault and user
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @return proxy The address of the strategy proxy
+     */
+    function getStrategyProxy(address vault, address user) external view returns (address proxy);
+
+    /**
+     * @notice Get the leverage strategy for a given proxy
+     * @param proxy The address of the strategy proxy
+     * @return The address of the leverage strategy
+     */
+    function getProxyLeverageStrategy(
+        address proxy
+    ) external view returns (ILeverageStrategy);
 
     /**
      * @notice Calculate the osToken shares in boost

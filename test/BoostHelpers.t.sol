@@ -22,10 +22,12 @@ contract BoostHelpersTest is Test {
 
     uint256 public constant forkBlockNumber = 21_916_340;
     address public constant keeper = 0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5;
-    address public constant leverageStrategy = 0x48cD14FDB8e72A03C8D952af081DBB127D6281fc;
+    address public constant leverageStrategyV1 = 0x48cD14FDB8e72A03C8D952af081DBB127D6281fc;
     address public constant osTokenCtrl = 0x2A261e60FB14586B474C208b1B7AC6D0f5000306;
     address public constant osTokenEscrow = 0x09e84205DF7c68907e619D07aFD90143c5763605;
     address public constant sharedMevEscrow = 0x48319f97E5Da1233c21c48b80097c0FB7a20Ff86;
+    address public constant strategiesRegistry = 0x90b82E4b3aa385B4A02B7EBc1892a4BeD6B5c465;
+    address public constant strategyProxyImplementation = 0x2CbE7Ba7f14ac24F3AA6AE2e1A8159670C9C7b75;
 
     BoostHelpers public boostHelpers;
     TestUser public boostUser;
@@ -37,7 +39,15 @@ contract BoostHelpersTest is Test {
     function setUp() public {
         vm.createSelectFork(vm.envString('MAINNET_RPC_URL'));
         vm.rollFork(forkBlockNumber);
-        boostHelpers = new BoostHelpers(keeper, leverageStrategy, osTokenCtrl, osTokenEscrow, sharedMevEscrow);
+        boostHelpers = new BoostHelpers(
+            keeper,
+            leverageStrategyV1,
+            strategiesRegistry,
+            osTokenCtrl,
+            osTokenEscrow,
+            sharedMevEscrow,
+            strategyProxyImplementation
+        );
 
         bytes32[] memory proof = new bytes32[](6);
 
