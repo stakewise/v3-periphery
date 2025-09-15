@@ -70,7 +70,7 @@ abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeab
 
             // approve token transfers to relayer
             if (IERC20(token).allowance(address(this), _relayer) < tokenBalance) {
-                SafeERC20.forceApprove(IERC20(token), _relayer, type(uint256).max);
+                SafeERC20.forceApprove(IERC20(token), _relayer, tokenBalance);
             }
 
             // Build order data
