@@ -68,6 +68,11 @@ abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeab
                 revert InvalidToken();
             }
 
+            // approve token transfers to relayer
+            if (IERC20(token).allowance(address(this), _relayer) < tokenBalance) {
+                SafeERC20.forceApprove(IERC20(token), _relayer, type(uint256).max);
+            }
+
             // Build order data
             order = SwapOrderHandler.Data({
                 sellToken: token,
@@ -84,11 +89,6 @@ abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeab
             });
 
             _composableCoW.create(orderParams, true);
-
-            // approve token transfers to relayer
-            if (IERC20(token).allowance(address(this), _relayer) < tokenBalance) {
-                SafeERC20.forceApprove(IERC20(token), _relayer, type(uint256).max);
-            }
 
             unchecked {
                 // Cannot realistically overflow
