@@ -111,6 +111,9 @@ contract GnoTokensConverterTest is GnoHelpers {
     }
 
     function test_transferAssets_transfersGnoToVault() public {
+        // collateralize vault
+        _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), vault);
+
         // Fund the converter with GNO tokens
         uint256 gnoAmount = 2 ether;
         _mintGnoToken(address(converter), gnoAmount);

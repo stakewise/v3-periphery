@@ -143,6 +143,9 @@ contract EthTokensConverterTest is EthHelpers {
     }
 
     function test_transferAssets_success() public {
+        // collateralize vault
+        _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), vault);
+
         // Fund the converter with WETH
         uint256 wethAmount = 2 ether;
         WETH9(payable(weth)).deposit{value: wethAmount}();
