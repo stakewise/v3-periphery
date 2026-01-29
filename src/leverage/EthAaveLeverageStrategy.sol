@@ -76,11 +76,12 @@ contract EthAaveLeverageStrategy is AaveLeverageStrategy {
         if (claimedAssets == 0) return 0;
 
         // convert ETH to WETH
-        IStrategyProxy(proxy).executeWithValue(
-            address(_assetToken),
-            abi.encodeWithSelector(WETH9(payable(address(_assetToken))).deposit.selector),
-            claimedAssets
-        );
+        IStrategyProxy(proxy)
+            .executeWithValue(
+                address(_assetToken),
+                abi.encodeWithSelector(WETH9(payable(address(_assetToken))).deposit.selector),
+                claimedAssets
+            );
     }
 
     /// @inheritdoc LeverageStrategy
@@ -90,26 +91,34 @@ contract EthAaveLeverageStrategy is AaveLeverageStrategy {
         uint256 depositAssets,
         uint256 mintOsTokenShares
     ) internal override returns (uint256) {
-        IStrategyProxy(proxy).execute(
-            address(_assetToken),
-            abi.encodeWithSelector(WETH9(payable(address(_assetToken))).withdraw.selector, depositAssets)
-        );
+        IStrategyProxy(proxy)
+            .execute(
+                address(_assetToken),
+                abi.encodeWithSelector(WETH9(payable(address(_assetToken))).withdraw.selector, depositAssets)
+            );
         uint256 balanceBefore = _osToken.balanceOf(proxy);
-        IStrategyProxy(proxy).executeWithValue(
-            vault,
-            abi.encodeWithSelector(
-                IEthVault(vault).depositAndMintOsToken.selector, proxy, mintOsTokenShares, address(0)
-            ),
-            depositAssets
-        );
+        IStrategyProxy(proxy)
+            .executeWithValue(
+                vault,
+                abi.encodeWithSelector(
+                    IEthVault(vault).depositAndMintOsToken.selector, proxy, mintOsTokenShares, address(0)
+                ),
+                depositAssets
+            );
         return _osToken.balanceOf(proxy) - balanceBefore;
     }
 
     /// @inheritdoc LeverageStrategy
-    function _transferAssets(address proxy, address receiver, uint256 amount) internal override {
-        IStrategyProxy(proxy).execute(
-            address(_assetToken), abi.encodeWithSelector(WETH9(payable(address(_assetToken))).withdraw.selector, amount)
-        );
+    function _transferAssets(
+        address proxy,
+        address receiver,
+        uint256 amount
+    ) internal override {
+        IStrategyProxy(proxy)
+            .execute(
+                address(_assetToken),
+                abi.encodeWithSelector(WETH9(payable(address(_assetToken))).withdraw.selector, amount)
+            );
         IStrategyProxy(proxy).sendValue(payable(receiver), amount);
     }
 }

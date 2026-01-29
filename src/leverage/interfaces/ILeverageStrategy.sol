@@ -129,7 +129,10 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param user The address of the user
      * @return proxy The address of the strategy proxy
      */
-    function getStrategyProxy(address vault, address user) external view returns (address proxy);
+    function getStrategyProxy(
+        address vault,
+        address user
+    ) external view returns (address proxy);
 
     /**
      * @notice Returns the vault LTV.
@@ -174,7 +177,10 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param user The address of the user
      * @return True if the user can be forced to the exit queue, otherwise false
      */
-    function canForceEnterExitQueue(address vault, address user) external view returns (bool);
+    function canForceEnterExitQueue(
+        address vault,
+        address user
+    ) external view returns (bool);
 
     /**
      * @notice Checks if the proxy is exiting
@@ -191,14 +197,20 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param osTokenShares The amount of osToken shares at hand
      * @return The amount of osToken shares to flashloan
      */
-    function getFlashloanOsTokenShares(address vault, uint256 osTokenShares) external view returns (uint256);
+    function getFlashloanOsTokenShares(
+        address vault,
+        uint256 osTokenShares
+    ) external view returns (uint256);
 
     /**
      * @notice Updates the vault state
      * @param vault The address of the vault
      * @param harvestParams The harvest parameters
      */
-    function updateVaultState(address vault, IKeeperRewards.HarvestParams calldata harvestParams) external;
+    function updateVaultState(
+        address vault,
+        IKeeperRewards.HarvestParams calldata harvestParams
+    ) external;
 
     /**
      * @notice Approves the osToken transfers from the user to the strategy
@@ -209,7 +221,14 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param r ECDSA signature r
      * @param s ECDSA signature s
      */
-    function permit(address vault, uint256 osTokenShares, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
+    function permit(
+        address vault,
+        uint256 osTokenShares,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
 
     /**
      * @notice Deposit assets to the strategy
@@ -217,7 +236,11 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param osTokenShares Amount of osToken shares to deposit
      * @param referrer The address of the referrer
      */
-    function deposit(address vault, uint256 osTokenShares, address referrer) external;
+    function deposit(
+        address vault,
+        uint256 osTokenShares,
+        address referrer
+    ) external;
 
     /**
      * @notice Enter the OsToken escrow exit queue. Can only be called by the position owner.
@@ -225,7 +248,10 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param positionPercent The percent of the position to exit from strategy
      * @return positionTicket The exit position ticket
      */
-    function enterExitQueue(address vault, uint256 positionPercent) external returns (uint256 positionTicket);
+    function enterExitQueue(
+        address vault,
+        uint256 positionPercent
+    ) external returns (uint256 positionTicket);
 
     /**
      * @notice Force enter the OsToken escrow exit queue. Can be called by anyone if approaching liquidation.
@@ -233,7 +259,10 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param user The address of the user
      * @return positionTicket The exit position ticket
      */
-    function forceEnterExitQueue(address vault, address user) external returns (uint256 positionTicket);
+    function forceEnterExitQueue(
+        address vault,
+        address user
+    ) external returns (uint256 positionTicket);
 
     /**
      * @notice Claim exited assets. Can be called by anyone.
@@ -241,14 +270,21 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param user The address of the user
      * @param exitPosition The exit position to process
      */
-    function claimExitedAssets(address vault, address user, ExitPosition calldata exitPosition) external;
+    function claimExitedAssets(
+        address vault,
+        address user,
+        ExitPosition calldata exitPosition
+    ) external;
 
     /**
      * @notice Rescue vault assets. Can only be called by the position owner to rescue the vault assets in case of lending protocol liquidation.
      * @param vault The address of the vault
      * @param exitPosition The exit position to process
      */
-    function rescueVaultAssets(address vault, ExitPosition calldata exitPosition) external;
+    function rescueVaultAssets(
+        address vault,
+        ExitPosition calldata exitPosition
+    ) external;
 
     /**
      * @notice Rescue lending assets. Can only be called by the position owner to rescue the lending assets in case of vault liquidation.
@@ -256,7 +292,11 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @param assets The amount of assets to repay
      * @param maxSlippagePercent The maximum slippage percent
      */
-    function rescueLendingAssets(address vault, uint256 assets, uint256 maxSlippagePercent) external;
+    function rescueLendingAssets(
+        address vault,
+        uint256 assets,
+        uint256 maxSlippagePercent
+    ) external;
 
     /**
      * @notice Set the strategy proxy exiting state. Can only be called by the proxy owner, i.e. previous strategy.

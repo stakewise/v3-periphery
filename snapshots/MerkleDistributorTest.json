@@ -1,11 +1,11 @@
 {
-  "MerkleDistributorTest_test_addDistributor": "51298",
-  "MerkleDistributorTest_test_claim": "145456",
-  "MerkleDistributorTest_test_constructor": "1417841",
-  "MerkleDistributorTest_test_distributeOneTime": "76503",
-  "MerkleDistributorTest_test_distributePeriodically": "74627",
-  "MerkleDistributorTest_test_removeDistributor": "26886",
-  "MerkleDistributorTest_test_setRewardsDelay": "30905",
-  "MerkleDistributorTest_test_setRewardsMinOracles": "36951",
-  "MerkleDistributorTest_test_setRewardsRoot": "52046"
+  "MerkleDistributorTest_test_addDistributor": "29954",
+  "MerkleDistributorTest_test_claim": "108341",
+  "MerkleDistributorTest_test_constructor": "1253137",
+  "MerkleDistributorTest_test_distributeOneTime": "40639",
+  "MerkleDistributorTest_test_distributePeriodically": "39199",
+  "MerkleDistributorTest_test_removeDistributor": "3554",
+  "MerkleDistributorTest_test_setRewardsDelay": "9689",
+  "MerkleDistributorTest_test_setRewardsMinOracles": "11247",
+  "MerkleDistributorTest_test_setRewardsRoot": "14434"
 }

@@ -55,7 +55,12 @@ contract StakeHelpers is Multicall {
     IOsTokenConfigV2 private immutable _osTokenConfigV2;
     IOsTokenVaultController private immutable _osTokenController;
 
-    constructor(address keeper, address osTokenConfigV1, address osTokenConfigV2, address osTokenController) {
+    constructor(
+        address keeper,
+        address osTokenConfigV1,
+        address osTokenConfigV2,
+        address osTokenController
+    ) {
         _keeper = IKeeperRewards(keeper);
         _osTokenConfigV1 = IOsTokenConfigV1(osTokenConfigV1);
         _osTokenConfigV2 = IOsTokenConfigV2(osTokenConfigV2);

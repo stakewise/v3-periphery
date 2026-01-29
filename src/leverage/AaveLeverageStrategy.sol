@@ -99,34 +99,51 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
     }
 
     /// @inheritdoc LeverageStrategy
-    function _supplyOsTokenShares(address proxy, uint256 osTokenShares) internal override {
-        IStrategyProxy(proxy).execute(
-            address(_aavePool),
-            abi.encodeWithSelector(_aavePool.supply.selector, address(_osToken), osTokenShares, proxy, 0)
-        );
+    function _supplyOsTokenShares(
+        address proxy,
+        uint256 osTokenShares
+    ) internal override {
+        IStrategyProxy(proxy)
+            .execute(
+                address(_aavePool),
+                abi.encodeWithSelector(_aavePool.supply.selector, address(_osToken), osTokenShares, proxy, 0)
+            );
     }
 
     /// @inheritdoc LeverageStrategy
-    function _withdrawOsTokenShares(address proxy, uint256 osTokenShares) internal override {
-        IStrategyProxy(proxy).execute(
-            address(_aavePool),
-            abi.encodeWithSelector(_aavePool.withdraw.selector, address(_osToken), osTokenShares, proxy)
-        );
+    function _withdrawOsTokenShares(
+        address proxy,
+        uint256 osTokenShares
+    ) internal override {
+        IStrategyProxy(proxy)
+            .execute(
+                address(_aavePool),
+                abi.encodeWithSelector(_aavePool.withdraw.selector, address(_osToken), osTokenShares, proxy)
+            );
     }
 
     /// @inheritdoc LeverageStrategy
-    function _borrowAssets(address proxy, uint256 amount) internal override {
-        IStrategyProxy(proxy).execute(
-            address(_aavePool),
-            abi.encodeWithSelector(_aavePool.borrow.selector, address(_assetToken), amount, 2, 0, proxy)
-        );
+    function _borrowAssets(
+        address proxy,
+        uint256 amount
+    ) internal override {
+        IStrategyProxy(proxy)
+            .execute(
+                address(_aavePool),
+                abi.encodeWithSelector(_aavePool.borrow.selector, address(_assetToken), amount, 2, 0, proxy)
+            );
     }
 
     /// @inheritdoc LeverageStrategy
-    function _repayAssets(address proxy, uint256 amount) internal override {
-        IStrategyProxy(proxy).execute(
-            address(_aavePool), abi.encodeWithSelector(_aavePool.repay.selector, address(_assetToken), amount, 2, proxy)
-        );
+    function _repayAssets(
+        address proxy,
+        uint256 amount
+    ) internal override {
+        IStrategyProxy(proxy)
+            .execute(
+                address(_aavePool),
+                abi.encodeWithSelector(_aavePool.repay.selector, address(_assetToken), amount, 2, proxy)
+            );
     }
 
     /// @inheritdoc LeverageStrategy
@@ -140,17 +157,19 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
         }
 
         // setup emode category
-        IStrategyProxy(proxy).execute(
-            address(_aavePool), abi.encodeWithSelector(_aavePool.setUserEMode.selector, _emodeCategory)
-        );
+        IStrategyProxy(proxy)
+            .execute(address(_aavePool), abi.encodeWithSelector(_aavePool.setUserEMode.selector, _emodeCategory));
 
         // approve Aave pool to spend OsToken and AssetToken
-        IStrategyProxy(proxy).execute(
-            address(_osToken), abi.encodeWithSelector(_osToken.approve.selector, address(_aavePool), type(uint256).max)
-        );
-        IStrategyProxy(proxy).execute(
-            address(_assetToken),
-            abi.encodeWithSelector(_assetToken.approve.selector, address(_aavePool), type(uint256).max)
-        );
+        IStrategyProxy(proxy)
+            .execute(
+                address(_osToken),
+                abi.encodeWithSelector(_osToken.approve.selector, address(_aavePool), type(uint256).max)
+            );
+        IStrategyProxy(proxy)
+            .execute(
+                address(_assetToken),
+                abi.encodeWithSelector(_assetToken.approve.selector, address(_aavePool), type(uint256).max)
+            );
     }
 }

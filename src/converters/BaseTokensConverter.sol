@@ -5,7 +5,7 @@ pragma solidity ^0.8.26;
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
+import {ReentrancyGuardTransient} from '@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol';
 import {IConditionalOrder, IConditionalOrderGenerator} from '@composable-cow/BaseConditionalOrder.sol';
 import {IVaultVersion} from '@stakewise-core/interfaces/IVaultVersion.sol';
 import {GPv2Order} from '@cowprotocol/contracts/libraries/GPv2Order.sol';
@@ -20,7 +20,7 @@ import {SwapOrderHandler} from './SwapOrderHandler.sol';
  * @author StakeWise
  * @notice Defines common functionality for converting tokens to asset token (e.g. ETH/GNO) and returning them to the Vault
  */
-abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeable, Multicall, IBaseTokensConverter {
+abstract contract BaseTokensConverter is Initializable, ReentrancyGuardTransient, Multicall, IBaseTokensConverter {
     IComposableCoW private immutable _composableCoW;
     IConditionalOrder private immutable _swapOrderHandler;
 
@@ -39,7 +39,12 @@ abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeab
      * @param assetToken The address of the asset token (e.g. WETH/GNO)
      * @param relayer The address of the Cowswap relayer contract
      */
-    constructor(address composableCoW, address swapOrderHandler, address assetToken, address relayer) {
+    constructor(
+        address composableCoW,
+        address swapOrderHandler,
+        address assetToken,
+        address relayer
+    ) {
         _composableCoW = IComposableCoW(composableCoW);
         _swapOrderHandler = IConditionalOrderGenerator(swapOrderHandler);
         _assetToken = assetToken;
@@ -105,7 +110,10 @@ abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeab
     }
 
     /// @inheritdoc IBaseTokensConverter
-    function isValidSignature(bytes32 _hash, bytes memory signature) public view returns (bytes4) {
+    function isValidSignature(
+        bytes32 _hash,
+        bytes memory signature
+    ) public view returns (bytes4) {
         (GPv2Order.Data memory order, IComposableCoW.PayloadStruct memory payload) =
             abi.decode(signature, (GPv2Order.Data, IComposableCoW.PayloadStruct));
         bytes32 domainSeparator = _composableCoW.domainSeparator();
@@ -131,7 +139,6 @@ abstract contract BaseTokensConverter is Initializable, ReentrancyGuardUpgradeab
     function __BaseTokensConverter_init(
         address _vault
     ) internal onlyInitializing {
-        __ReentrancyGuard_init();
         if (IVaultVersion(_vault).version() < _supportedVaultVersion()) {
             revert Errors.InvalidVault();
         }

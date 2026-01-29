@@ -6,7 +6,7 @@ import {IKeeperRewards} from '@stakewise-core/interfaces/IKeeperRewards.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
 import {IEthVault} from '@stakewise-core/interfaces/IEthVault.sol';
 import {Test} from 'forge-std/Test.sol';
-import {StakeHelpers} from '../src/StakeHelpers.sol';
+import {StakeHelpers} from '../src/helpers/StakeHelpers.sol';
 
 contract StakeHelpersTest is Test {
     uint256 constant forkBlockNumber = 20_928_188;
@@ -17,10 +17,7 @@ contract StakeHelpersTest is Test {
         IOsTokenVaultController(0x2A261e60FB14586B474C208b1B7AC6D0f5000306);
     IEthVault constant vault = IEthVault(0xAC0F906E433d58FA868F936E8A43230473652885);
     IKeeperRewards.HarvestParams harvestParams = IKeeperRewards.HarvestParams({
-        rewardsRoot: bytes32(0),
-        reward: 0,
-        unlockedMevReward: 0,
-        proof: new bytes32[](0)
+        rewardsRoot: bytes32(0), reward: 0, unlockedMevReward: 0, proof: new bytes32[](0)
     });
 
     StakeHelpers stakeHelpers;
@@ -33,15 +30,12 @@ contract StakeHelpersTest is Test {
 
     function test_calculateStake() public {
         uint256 stakeAssets = 1 ether;
-        uint256 expectedOsTokenAssets = 0.89999666867661156 ether;
+        uint256 expectedOsTokenAssets = 0.899_996_668_676_611_56 ether;
         uint256 expectedOsTokenShares =
             IOsTokenVaultController(osTokenController).convertToShares(expectedOsTokenAssets);
 
         StakeHelpers.StakeInput memory input = StakeHelpers.StakeInput({
-            vault: address(vault),
-            user: address(this),
-            stakeAssets: stakeAssets,
-            harvestParams: harvestParams
+            vault: address(vault), user: address(this), stakeAssets: stakeAssets, harvestParams: harvestParams
         });
         StakeHelpers.StakeOutput memory outputData = stakeHelpers.calculateStake(input);
         assertEq(outputData.receivedOsTokenShares, expectedOsTokenShares);
@@ -55,7 +49,7 @@ contract StakeHelpersTest is Test {
 
     function test_calculateUnstake() public {
         uint256 stakeAssets = 1 ether;
-        uint256 expectedReceivedAssets = 0.999866758128256447 ether;
+        uint256 expectedReceivedAssets = 0.999_866_758_128_256_447 ether;
         uint256 osTokenAssets = 0.9 ether;
         uint256 osTokenShares = IOsTokenVaultController(osTokenController).convertToShares(osTokenAssets);
         vault.deposit{value: stakeAssets}(address(this), address(0));
@@ -64,10 +58,7 @@ contract StakeHelpersTest is Test {
         vm.warp(block.timestamp + 30 days);
 
         StakeHelpers.UnstakeInput memory input = StakeHelpers.UnstakeInput({
-            vault: address(vault),
-            user: address(this),
-            osTokenShares: osTokenShares,
-            harvestParams: harvestParams
+            vault: address(vault), user: address(this), osTokenShares: osTokenShares, harvestParams: harvestParams
         });
         StakeHelpers.UnstakeOutput memory outputData = stakeHelpers.calculateUnstake(input);
         assertEq(outputData.burnOsTokenShares, osTokenShares);

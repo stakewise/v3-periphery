@@ -132,7 +132,10 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
     }
 
     /// @inheritdoc IMerkleDistributor
-    function setDistributor(address distributor, bool isEnabled) external onlyOwner {
+    function setDistributor(
+        address distributor,
+        bool isEnabled
+    ) external onlyOwner {
         distributors[distributor] = isEnabled;
         emit DistributorUpdated(msg.sender, distributor, isEnabled);
     }
@@ -180,13 +183,11 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
         bytes32 merkleRoot = rewardsRoot;
 
         // verify the merkle proof
-        if (
-            !MerkleProof.verifyCalldata(
+        if (!MerkleProof.verifyCalldata(
                 merkleProof,
                 merkleRoot,
                 keccak256(bytes.concat(keccak256(abi.encode(tokens, account, cumulativeAmounts))))
-            )
-        ) {
+            )) {
             revert Errors.InvalidProof();
         }
 
@@ -231,7 +232,11 @@ contract MerkleDistributor is Ownable2Step, EIP712, IMerkleDistributor {
      * @param message The message that was signed
      * @param signatures The concatenation of the oracles' signatures
      */
-    function _verifySignatures(uint256 requiredSignatures, bytes32 message, bytes calldata signatures) private view {
+    function _verifySignatures(
+        uint256 requiredSignatures,
+        bytes32 message,
+        bytes calldata signatures
+    ) private view {
         if (requiredSignatures == 0) revert Errors.InvalidOracles();
 
         // check whether enough signatures

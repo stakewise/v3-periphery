@@ -22,7 +22,10 @@ interface IStrategyProxy {
      * @param data The call data
      * @return The call result
      */
-    function execute(address target, bytes memory data) external payable returns (bytes memory);
+    function execute(
+        address target,
+        bytes memory data
+    ) external payable returns (bytes memory);
 
     /**
      * @notice Executes a call on the target contract with a native assets transfer. Can only be called by the owner.
@@ -31,12 +34,19 @@ interface IStrategyProxy {
      * @param value The amount of native assets to send
      * @return The call result
      */
-    function executeWithValue(address target, bytes memory data, uint256 value) external returns (bytes memory);
+    function executeWithValue(
+        address target,
+        bytes memory data,
+        uint256 value
+    ) external returns (bytes memory);
 
     /**
      * @notice Function for sending native assets to the recipient. Can only be called by the owner.
      * @param recipient The address of the recipient
      * @param amount The amount of native assets to send
      */
-    function sendValue(address payable recipient, uint256 amount) external;
+    function sendValue(
+        address payable recipient,
+        uint256 amount
+    ) external;
 }

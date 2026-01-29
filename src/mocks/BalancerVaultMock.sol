@@ -31,7 +31,11 @@ contract BalancerVaultMock is IBalancerVault, Initializable, UUPSUpgradeable, Ow
     IOsTokenVaultController private immutable _osTokenVaultController;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address osToken, address assetToken, address osTokenVaultController) {
+    constructor(
+        address osToken,
+        address assetToken,
+        address osTokenVaultController
+    ) {
         _osToken = IERC20(osToken);
         _assetToken = IERC20(assetToken);
         _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);

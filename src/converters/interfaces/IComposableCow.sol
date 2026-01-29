@@ -30,7 +30,10 @@ interface IComposableCoW {
      * @param params The parameters of the conditional order
      * @param dispatch Whether to dispatch the `ConditionalOrderCreated` event
      */
-    function create(IConditionalOrder.ConditionalOrderParams calldata params, bool dispatch) external;
+    function create(
+        IConditionalOrder.ConditionalOrderParams calldata params,
+        bool dispatch
+    ) external;
 
     /*
      * @dev This function does not make use of the `typeHash` parameter as CoW Protocol does not

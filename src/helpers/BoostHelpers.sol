@@ -14,8 +14,8 @@ import {IOsTokenVaultEscrow} from '@stakewise-core/interfaces/IOsTokenVaultEscro
 import {IVaultEnterExit} from '@stakewise-core/interfaces/IVaultEnterExit.sol';
 import {IVaultMev} from '@stakewise-core/interfaces/IVaultMev.sol';
 import {Errors} from '@stakewise-core/libraries/Errors.sol';
-import {ILeverageStrategy} from './leverage/interfaces/ILeverageStrategy.sol';
-import {IStrategiesRegistry} from './interfaces/IStrategiesRegistry.sol';
+import {ILeverageStrategy} from '../leverage/interfaces/ILeverageStrategy.sol';
+import {IStrategiesRegistry} from '../interfaces/IStrategiesRegistry.sol';
 import {IBoostHelpers} from './interfaces/IBoostHelpers.sol';
 
 /**
@@ -85,7 +85,10 @@ contract BoostHelpers is IBoostHelpers {
     }
 
     /// @inheritdoc IBoostHelpers
-    function getStrategyProxy(address vault, address user) public view returns (address proxy) {
+    function getStrategyProxy(
+        address vault,
+        address user
+    ) public view returns (address proxy) {
         // check whether strategy proxy exists
         bytes32 strategyProxyId = keccak256(abi.encode(_leverageStrategyV1.strategyId(), vault, user));
         proxy = _strategiesRegistry.strategyProxyIdToProxy(strategyProxyId);
@@ -202,9 +205,10 @@ contract BoostHelpers is IBoostHelpers {
 
         uint256 leftTickets;
         uint256 exitedTickets;
-        (leftTickets, exitedTickets, exitedAssets) = IVaultEnterExit(vault).calculateExitedAssets(
-            address(_osTokenEscrow), exitRequest.positionTicket, exitRequest.timestamp, exitQueueIndex
-        );
+        (leftTickets, exitedTickets, exitedAssets) = IVaultEnterExit(vault)
+            .calculateExitedAssets(
+                address(_osTokenEscrow), exitRequest.positionTicket, exitRequest.timestamp, exitQueueIndex
+            );
         assets = exitedAssets + IVaultState(vault).convertToAssets(leftTickets);
     }
 }

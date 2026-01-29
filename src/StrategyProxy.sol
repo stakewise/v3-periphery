@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.26;
 
-import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
+import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
+import {ReentrancyGuardTransient} from '@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol';
 import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {IStrategyProxy} from './interfaces/IStrategyProxy.sol';
@@ -13,7 +13,7 @@ import {IStrategyProxy} from './interfaces/IStrategyProxy.sol';
  * @author StakeWise
  * @notice Proxy contract for executing transactions on behalf of the Strategy.
  */
-contract StrategyProxy is Initializable, ReentrancyGuardUpgradeable, OwnableUpgradeable, IStrategyProxy {
+contract StrategyProxy is Initializable, ReentrancyGuardTransient, OwnableUpgradeable, IStrategyProxy {
     /**
      * @dev Constructor
      */
@@ -25,12 +25,14 @@ contract StrategyProxy is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
     function initialize(
         address initialOwner
     ) external initializer {
-        __ReentrancyGuard_init();
         __Ownable_init(initialOwner);
     }
 
     /// @inheritdoc IStrategyProxy
-    function execute(address target, bytes memory data) external payable onlyOwner returns (bytes memory) {
+    function execute(
+        address target,
+        bytes memory data
+    ) external payable onlyOwner returns (bytes memory) {
         if (msg.value > 0) {
             return executeWithValue(target, data, msg.value);
         } else {
@@ -48,7 +50,10 @@ contract StrategyProxy is Initializable, ReentrancyGuardUpgradeable, OwnableUpgr
     }
 
     /// @inheritdoc IStrategyProxy
-    function sendValue(address payable recipient, uint256 amount) external onlyOwner nonReentrant {
+    function sendValue(
+        address payable recipient,
+        uint256 amount
+    ) external onlyOwner nonReentrant {
         Address.sendValue(recipient, amount);
     }
 
