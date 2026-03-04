@@ -5,6 +5,20 @@ optimizer = true
 optimizer_runs = 200
 via_ir = true
 bytecode_hash = 'none'
+remappings = [
+    # v3-core uses its own OpenZeppelin
+    "lib/v3-core:@openzeppelin/contracts-upgradeable/=lib/v3-core/lib/openzeppelin-contracts-upgradeable/contracts/",
+    "lib/v3-core:@openzeppelin/contracts/=lib/v3-core/lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
+    # Root project OpenZeppelin
+    "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/contracts/",
+    "@stakewise-core/=lib/v3-core/contracts/",
+    "@stakewise-test/=lib/v3-core/test/",
+    "@aave-core/=lib/aave-v3-origin/src/contracts/",
+    "safe/=lib/composable-cow/lib/safe/contracts/",
+    "@composable-cow/=lib/composable-cow/src/",
+    "@cowprotocol/=lib/composable-cow/lib/cowprotocol/src/",
+]
 
 [lint]
 lint_on_build = false

@@ -106,12 +106,10 @@ contract EthAaveLeverageStrategyTest is Test {
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
         StrategiesRegistry(strategiesRegistry).setStrategy(address(strategy), true);
-        StrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'maxVaultLtvPercent', abi.encode(maxVaultLtvPercent)
-        );
-        StrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'maxBorrowLtvPercent', abi.encode(maxBorrowLtvPercent)
-        );
+        StrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'maxVaultLtvPercent', abi.encode(maxVaultLtvPercent));
+        StrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'maxBorrowLtvPercent', abi.encode(maxBorrowLtvPercent));
         vm.stopPrank();
 
         // create vault
@@ -496,12 +494,10 @@ contract EthAaveLeverageStrategyTest is Test {
         strategy.deposit(vault, osTokenShares, address(0));
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        StrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'vaultForceExitLtvPercent', abi.encode(0.918 ether)
-        );
-        StrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'borrowForceExitLtvPercent', abi.encode(0.948 ether)
-        );
+        StrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'vaultForceExitLtvPercent', abi.encode(0.918 ether));
+        StrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'borrowForceExitLtvPercent', abi.encode(0.948 ether));
         vm.stopPrank();
 
         vm.prank(address(1));
@@ -515,9 +511,8 @@ contract EthAaveLeverageStrategyTest is Test {
         strategy.deposit(vault, osTokenShares, address(0));
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        StrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'vaultForceExitLtvPercent', abi.encode(0.899 ether)
-        );
+        StrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'vaultForceExitLtvPercent', abi.encode(0.899 ether));
         vm.stopPrank();
 
         vm.prank(address(1));
@@ -534,9 +529,8 @@ contract EthAaveLeverageStrategyTest is Test {
         strategy.deposit(vault, osTokenShares, address(0));
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        StrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'borrowForceExitLtvPercent', abi.encode(0.929 ether)
-        );
+        StrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'borrowForceExitLtvPercent', abi.encode(0.929 ether));
         vm.stopPrank();
 
         vm.prank(address(1));
@@ -690,18 +684,15 @@ contract EthAaveLeverageStrategyTest is Test {
 
         // try claiming from current strategy
         ILeverageStrategy.ExitPosition memory exitPosition = ILeverageStrategy.ExitPosition({
-            positionTicket: positionTicket,
-            timestamp: timestamp,
-            exitQueueIndex: exitQueueIndex
+            positionTicket: positionTicket, timestamp: timestamp, exitQueueIndex: exitQueueIndex
         });
 
         vm.expectRevert();
         ILeverageStrategy(prevStrategy).claimExitedAssets(_vault, user, exitPosition);
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        IStrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            ILeverageStrategy(prevStrategy).strategyId(), 'upgradeV1', abi.encode(strategy)
-        );
+        IStrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(ILeverageStrategy(prevStrategy).strategyId(), 'upgradeV1', abi.encode(strategy));
         vm.stopPrank();
 
         address strategyProxy = ILeverageStrategy(prevStrategy).getStrategyProxy(_vault, user);
@@ -759,9 +750,7 @@ contract EthAaveLeverageStrategyTest is Test {
 
         vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
         ILeverageStrategy.ExitPosition memory exitPosition = ILeverageStrategy.ExitPosition({
-            positionTicket: positionTicket,
-            timestamp: vm.getBlockTimestamp(),
-            exitQueueIndex: 0
+            positionTicket: positionTicket, timestamp: vm.getBlockTimestamp(), exitQueueIndex: 0
         });
         strategy.rescueVaultAssets(vault, exitPosition);
     }
@@ -824,15 +813,17 @@ contract EthAaveLeverageStrategyTest is Test {
 
         // rescue vault has high LTV
         vm.prank(OsTokenConfig(osTokenConfig).owner());
-        OsTokenConfig(osTokenConfig).updateConfig(
-            rescueVault,
-            IOsTokenConfig.Config({liqBonusPercent: 0, liqThresholdPercent: type(uint64).max, ltvPercent: 0.998 ether})
-        );
+        OsTokenConfig(osTokenConfig)
+            .updateConfig(
+                rescueVault,
+                IOsTokenConfig.Config({
+                    liqBonusPercent: 0, liqThresholdPercent: type(uint64).max, ltvPercent: 0.998 ether
+                })
+            );
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        IStrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'rescueVault', abi.encode(rescueVault)
-        );
+        IStrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'rescueVault', abi.encode(rescueVault));
         vm.stopPrank();
 
         uint256 assetsBefore = address(this).balance;
@@ -894,9 +885,8 @@ contract EthAaveLeverageStrategyTest is Test {
         strategy.deposit(vault, osTokenShares, address(0));
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        IStrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'balancerPoolId', abi.encode(balancerPoolId)
-        );
+        IStrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'balancerPoolId', abi.encode(balancerPoolId));
         vm.stopPrank();
 
         uint256 assetsBefore = address(this).balance;
@@ -947,9 +937,8 @@ contract EthAaveLeverageStrategyTest is Test {
         strategy.deposit(vault, osTokenShares, address(0));
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        IStrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'upgradeV2', abi.encode(address(0))
-        );
+        IStrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'upgradeV2', abi.encode(address(0)));
         vm.stopPrank();
 
         vm.expectRevert(Errors.ValueNotChanged.selector);
@@ -962,9 +951,8 @@ contract EthAaveLeverageStrategyTest is Test {
         strategy.deposit(vault, osTokenShares, address(0));
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        IStrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'upgradeV2', abi.encode(address(strategy))
-        );
+        IStrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'upgradeV2', abi.encode(address(strategy)));
         vm.stopPrank();
 
         vm.expectRevert(Errors.ValueNotChanged.selector);
@@ -978,9 +966,8 @@ contract EthAaveLeverageStrategyTest is Test {
 
         address newStrategy = address(1);
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        IStrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'upgradeV2', abi.encode(newStrategy)
-        );
+        IStrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'upgradeV2', abi.encode(newStrategy));
         vm.stopPrank();
 
         vm.expectEmit(true, true, false, false);
@@ -1015,9 +1002,8 @@ contract EthAaveLeverageStrategyTest is Test {
         );
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        IStrategiesRegistry(strategiesRegistry).setStrategyConfig(
-            strategy.strategyId(), 'upgradeV2', abi.encode(newStrategy)
-        );
+        IStrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'upgradeV2', abi.encode(newStrategy));
         vm.stopPrank();
 
         vm.assertFalse(ILeverageStrategy(newStrategy).isStrategyProxyExiting(strategyProxy), 'StrategyProxy is exiting');

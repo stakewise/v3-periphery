@@ -19,11 +19,17 @@ contract ComposableCowMock is Ownable {
 
     IERC20 public assetToken;
 
-    constructor(address owner_, address _assetToken) Ownable(owner_) {
+    constructor(
+        address owner_,
+        address _assetToken
+    ) Ownable(owner_) {
         assetToken = IERC20(_assetToken);
     }
 
-    function setTokenRate(address token, uint256 rate) external onlyOwner {
+    function setTokenRate(
+        address token,
+        uint256 rate
+    ) external onlyOwner {
         rates[token] = rate;
     }
 
@@ -35,7 +41,10 @@ contract ComposableCowMock is Ownable {
         }
     }
 
-    function convertToAssets(address token, uint256 amount) public view returns (uint256) {
+    function convertToAssets(
+        address token,
+        uint256 amount
+    ) public view returns (uint256) {
         uint256 rate = rates[token];
         if (rate == 0) {
             revert InvalidToken();
@@ -59,7 +68,10 @@ contract ComposableCowMock is Ownable {
         return bytes4(0);
     }
 
-    function create(IConditionalOrder.ConditionalOrderParams calldata params, bool) external {
+    function create(
+        IConditionalOrder.ConditionalOrderParams calldata params,
+        bool
+    ) external {
         SwapOrderHandler.Data memory data = abi.decode(params.staticInput, (SwapOrderHandler.Data));
         uint256 balance = IERC20(data.sellToken).balanceOf(msg.sender);
         if (balance == 0) {

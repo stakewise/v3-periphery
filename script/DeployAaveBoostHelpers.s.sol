@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 
 import {Script} from 'forge-std/Script.sol';
 import {console} from 'forge-std/console.sol';
-import {BoostHelpers} from '../src/BoostHelpers.sol';
+import {BoostHelpers} from '../src/helpers/BoostHelpers.sol';
 
 contract DeployAaveBoostHelpers is Script {
     struct ConfigParams {

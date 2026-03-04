@@ -3,6 +3,7 @@
 pragma solidity ^0.8.26;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IOsTokenConfig as IOsTokenConfigV2} from '@stakewise-core/interfaces/IOsTokenConfig.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
 import {IKeeperRewards} from '@stakewise-core/interfaces/IKeeperRewards.sol';
@@ -31,7 +32,7 @@ contract StakeHelpers is Multicall {
     struct UnstakeInput {
         address vault;
         address user;
-        uint256 osTokenShares;
+        uint256 assets;
         IKeeperRewards.HarvestParams harvestParams;
     }
 
@@ -41,21 +42,23 @@ contract StakeHelpers is Multicall {
         uint256 receivedAssets;
     }
 
-    struct BalanceInput {
-        address vault;
-        address user;
-        uint256 osTokenShares;
-        IKeeperRewards.HarvestParams harvestParams;
-    }
-
+    uint256 private constant _period = 10 minutes;
     uint256 private constant _maxPercent = 1e18;
 
+    IERC20 private immutable _osToken;
     IKeeperRewards private immutable _keeper;
     IOsTokenConfigV1 private immutable _osTokenConfigV1;
     IOsTokenConfigV2 private immutable _osTokenConfigV2;
     IOsTokenVaultController private immutable _osTokenController;
 
-    constructor(address keeper, address osTokenConfigV1, address osTokenConfigV2, address osTokenController) {
+    constructor(
+        address osToken,
+        address keeper,
+        address osTokenConfigV1,
+        address osTokenConfigV2,
+        address osTokenController
+    ) {
+        _osToken = IERC20(osToken);
         _keeper = IKeeperRewards(keeper);
         _osTokenConfigV1 = IOsTokenConfigV1(osTokenConfigV1);
         _osTokenConfigV2 = IOsTokenConfigV2(osTokenConfigV2);
@@ -81,13 +84,15 @@ contract StakeHelpers is Multicall {
 
         // fetch user osToken assets and shares
         uint256 userOsTokenShares = IVaultOsToken(inputData.vault).osTokenPositions(inputData.user);
+        userOsTokenShares += _getOsTokenPeriodFeeShares(userOsTokenShares);
         uint256 userOsTokenAssets = _osTokenController.convertToAssets(userOsTokenShares);
+        userOsTokenAssets += _getOsTokenPeriodRewardAssets(userOsTokenAssets);
 
         // calculate max osToken assets that user can mint
         uint256 maxOsTokenAssets = Math.mulDiv(userStakeAssets, vaultLtvPercent, _maxPercent);
 
         // add slippage to maxOsTokenAssets
-        uint256 slippage = _getOsTokenHourRewardAssets(maxOsTokenAssets);
+        uint256 slippage = _getOsTokenPeriodRewardAssets(maxOsTokenAssets);
         maxOsTokenAssets = maxOsTokenAssets > slippage ? maxOsTokenAssets - slippage : 0;
 
         // calculate osToken assets to mint based on user input
@@ -105,6 +110,34 @@ contract StakeHelpers is Multicall {
         }
     }
 
+    function getMaxUnstakeAssets(
+        address vault,
+        address user
+    ) public view returns (uint256 unstakeAssets, uint256 balanceOsTokenShares) {
+        // fetch user stake assets
+        uint256 stakeShares = IVaultState(vault).getShares(user);
+        uint256 stakeAssets = IVaultState(vault).convertToAssets(stakeShares);
+
+        // fetch user minted osToken assets
+        uint256 mintedOsTokenShares = IVaultOsToken(vault).osTokenPositions(user);
+
+        // fetch user osToken balance
+        balanceOsTokenShares = _osToken.balanceOf(user);
+
+        // user burns osToken balance and reduce minted osToken shares accordingly
+        uint256 burnOsTokenShares = Math.min(balanceOsTokenShares, mintedOsTokenShares);
+
+        uint256 leftOsTokenShares = mintedOsTokenShares - burnOsTokenShares;
+        leftOsTokenShares += _getOsTokenPeriodFeeShares(mintedOsTokenShares);
+
+        uint256 leftOsTokenAssets = _osTokenController.convertToAssets(leftOsTokenShares);
+        leftOsTokenAssets += _getOsTokenPeriodRewardAssets(leftOsTokenAssets);
+
+        uint256 vaultLtvPercent = _getVaultLtvPercent(vault);
+        uint256 lockedAssets = Math.min(Math.mulDiv(leftOsTokenAssets, _maxPercent, vaultLtvPercent), stakeAssets);
+        unstakeAssets = stakeAssets - lockedAssets;
+    }
+
     function calculateUnstake(
         UnstakeInput memory inputData
     ) external returns (UnstakeOutput memory outputData) {
@@ -113,79 +146,29 @@ contract StakeHelpers is Multicall {
             IVaultState(inputData.vault).updateState(inputData.harvestParams);
         }
 
-        // fetch user osToken position
-        uint256 leftOsTokenShares = IVaultOsToken(inputData.vault).osTokenPositions(inputData.user);
+        // fetch max unstake assets
+        (uint256 maxUnstakeAssets,) = getMaxUnstakeAssets(inputData.vault, inputData.user);
+
+        // calculate unstake assets and shares based on user input
+        outputData.receivedAssets = Math.min(inputData.assets, maxUnstakeAssets);
+        outputData.exitQueueShares = IVaultState(inputData.vault).convertToShares(outputData.receivedAssets);
+
+        // calculate max osToken shares to mint based on left stake assets
+        uint256 vaultLtvPercent = _getVaultLtvPercent(inputData.vault);
+        uint256 stakeAssets =
+            IVaultState(inputData.vault).convertToAssets(IVaultState(inputData.vault).getShares(inputData.user));
+        stakeAssets -= outputData.receivedAssets;
+        uint256 maxMintOsTokenAssets = Math.mulDiv(stakeAssets, vaultLtvPercent, _maxPercent);
+        // add slippage to maxMintOsTokenAssets
+        uint256 slippage = _getOsTokenPeriodRewardAssets(maxMintOsTokenAssets);
+        maxMintOsTokenAssets = maxMintOsTokenAssets > slippage ? maxMintOsTokenAssets - slippage : 0;
+        uint256 maxMintOsTokenShares = _osTokenController.convertToShares(maxMintOsTokenAssets);
 
         // calculate osToken shares to burn
-        outputData.burnOsTokenShares = Math.min(inputData.osTokenShares, leftOsTokenShares);
-
-        // update osToken shares
-        uint256 osTokenHourFeeShares = _getOsTokenHourFeeShares(leftOsTokenShares);
-        leftOsTokenShares = leftOsTokenShares + osTokenHourFeeShares - outputData.burnOsTokenShares;
-
-        // update osToken assets
-        uint256 leftOsTokenAssets = _osTokenController.convertToAssets(leftOsTokenShares);
-        leftOsTokenAssets += _getOsTokenHourRewardAssets(leftOsTokenAssets);
-
-        // fetch user stake assets and shares
-        uint256 stakeShares = IVaultState(inputData.vault).getShares(inputData.user);
-        uint256 stakeAssets = IVaultState(inputData.vault).convertToAssets(stakeShares);
-
-        // vault LTV
-        uint256 vaultLtvPercent = _getVaultLtvPercent(inputData.vault);
-
-        // calculate max unstake assets
-        uint256 lockedAssets = Math.min(Math.mulDiv(leftOsTokenAssets, _maxPercent, vaultLtvPercent), stakeAssets);
-        stakeAssets -= lockedAssets;
-
-        // calculate received assets
-        outputData.receivedAssets =
-            Math.mulDiv(_osTokenController.convertToAssets(outputData.burnOsTokenShares), _maxPercent, vaultLtvPercent);
-        if (stakeAssets < outputData.receivedAssets) {
-            outputData.receivedAssets = stakeAssets;
-        }
-        outputData.exitQueueShares =
-            Math.min(stakeShares, IVaultState(inputData.vault).convertToShares(outputData.receivedAssets));
-    }
-
-    function getBalance(
-        BalanceInput memory inputData
-    ) external returns (uint256 receivedAssets) {
-        // check whether state can be updated
-        if (_keeper.canHarvest(inputData.vault)) {
-            IVaultState(inputData.vault).updateState(inputData.harvestParams);
-        }
-
-        // fetch user osToken position
         uint256 mintedOsTokenShares = IVaultOsToken(inputData.vault).osTokenPositions(inputData.user);
-        uint256 balanceOsTokenShares = inputData.osTokenShares;
-
-        // calculate osToken shares to burn
-        uint256 burnOsTokenShares = Math.min(balanceOsTokenShares, mintedOsTokenShares);
-        mintedOsTokenShares -= burnOsTokenShares;
-        balanceOsTokenShares -= burnOsTokenShares;
-
-        // update osToken assets
-        uint256 leftOsTokenAssets = _osTokenController.convertToAssets(mintedOsTokenShares);
-
-        // fetch user stake assets and shares
-        uint256 stakeShares = IVaultState(inputData.vault).getShares(inputData.user);
-        uint256 stakeAssets = IVaultState(inputData.vault).convertToAssets(stakeShares);
-
-        // vault LTV
-        uint256 vaultLtvPercent = _getVaultLtvPercent(inputData.vault);
-
-        // calculate max unstake assets
-        uint256 lockedAssets = Math.min(Math.mulDiv(leftOsTokenAssets, _maxPercent, vaultLtvPercent), stakeAssets);
-        stakeAssets -= lockedAssets;
-
-        // calculate received assets
-        receivedAssets =
-            Math.mulDiv(_osTokenController.convertToAssets(burnOsTokenShares), _maxPercent, vaultLtvPercent);
-        if (stakeAssets < receivedAssets) {
-            receivedAssets = stakeAssets;
+        if (mintedOsTokenShares > maxMintOsTokenShares) {
+            outputData.burnOsTokenShares = mintedOsTokenShares - maxMintOsTokenShares;
         }
-        receivedAssets += _osTokenController.convertToAssets(balanceOsTokenShares);
     }
 
     function _getVaultLtvPercent(
@@ -200,18 +183,18 @@ contract StakeHelpers is Multicall {
         }
     }
 
-    function _getOsTokenHourRewardAssets(
+    function _getOsTokenPeriodRewardAssets(
         uint256 osTokenAssets
     ) private view returns (uint256) {
         uint256 avgRewardPerSecond = _osTokenController.avgRewardPerSecond();
-        return Math.mulDiv(osTokenAssets, avgRewardPerSecond * 1 hours, 1e18);
+        return Math.mulDiv(osTokenAssets, avgRewardPerSecond * _period, 1e18);
     }
 
-    function _getOsTokenHourFeeShares(
+    function _getOsTokenPeriodFeeShares(
         uint256 osTokenShares
     ) private view returns (uint256) {
         uint256 osTokenAssets = _osTokenController.convertToAssets(osTokenShares);
-        uint256 osTokenRewardAssets = _getOsTokenHourRewardAssets(osTokenAssets);
+        uint256 osTokenRewardAssets = _getOsTokenPeriodRewardAssets(osTokenAssets);
         uint256 osTokenFeeAssets = Math.mulDiv(osTokenRewardAssets, _osTokenController.feePercent(), 10_000);
         return _osTokenController.convertToShares(osTokenFeeAssets);
     }

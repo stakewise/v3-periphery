@@ -21,13 +21,21 @@ contract OsTokenVaultEscrowAuth is IOsTokenVaultEscrowAuth {
      * @param vaultsRegistry The address of the VaultsRegistry contract
      * @param strategiesRegistry The address of the StrategiesRegistry contract
      */
-    constructor(address vaultsRegistry, address strategiesRegistry) {
+    constructor(
+        address vaultsRegistry,
+        address strategiesRegistry
+    ) {
         _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
         _strategiesRegistry = IStrategiesRegistry(strategiesRegistry);
     }
 
     /// @inheritdoc IOsTokenVaultEscrowAuth
-    function canRegister(address vault, address owner, uint256, uint256) external view returns (bool) {
+    function canRegister(
+        address vault,
+        address owner,
+        uint256,
+        uint256
+    ) external view returns (bool) {
         return _vaultsRegistry.vaults(vault) && IVaultVersion(vault).version() > 2
             && _strategiesRegistry.strategyProxies(owner);
     }

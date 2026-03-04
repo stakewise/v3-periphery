@@ -119,7 +119,10 @@ interface IMerkleDistributor {
      * @param user The address of the user
      * @return cumulativeAmount The cumulative claimed amount for the user
      */
-    function claimedAmounts(address token, address user) external view returns (uint256 cumulativeAmount);
+    function claimedAmounts(
+        address token,
+        address user
+    ) external view returns (uint256 cumulativeAmount);
 
     /**
      * @notice Get the status of a distributor, is it enabled or not
@@ -168,7 +171,10 @@ interface IMerkleDistributor {
      * @param distributor The address of the distributor
      * @param isEnabled The status of the distributor, true for adding distributor, false for removing distributor
      */
-    function setDistributor(address distributor, bool isEnabled) external;
+    function setDistributor(
+        address distributor,
+        bool isEnabled
+    ) external;
 
     /**
      * @notice Distribute tokens every rewards delay for a specific duration

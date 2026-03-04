@@ -127,7 +127,6 @@ contract EthTokensConverterTest is EthHelpers {
     function test_initialize_invalidVault() public {
         // Create a new implementation
         EthTokensConverter newImpl = new EthTokensConverter(composableCoW, address(swapOrderHandler), weth, relayer);
-        address proxy = address(new ERC1967Proxy(address(newImpl), ''));
 
         // Create a vault with version 0
         address invalidVault = makeAddr('invalidVault');
@@ -137,9 +136,9 @@ contract EthTokensConverterTest is EthHelpers {
             abi.encode(0) // Set version to 0, which is less than required
         );
 
-        // Expect revert on initialization
+        // Expect revert on proxy deployment with invalid vault initialization
         vm.expectRevert(Errors.InvalidVault.selector);
-        EthTokensConverter(payable(proxy)).initialize(invalidVault);
+        new ERC1967Proxy(address(newImpl), abi.encodeCall(EthTokensConverter.initialize, (invalidVault)));
     }
 
     function test_transferAssets_success() public {

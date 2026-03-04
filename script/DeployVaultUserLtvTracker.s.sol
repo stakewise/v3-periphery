@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 
 import {Script} from 'forge-std/Script.sol';
 import {console} from 'forge-std/console.sol';
-import {VaultUserLtvTracker} from '../src/VaultUserLtvTracker.sol';
+import {VaultUserLtvTracker} from '../src/helpers/VaultUserLtvTracker.sol';
 
 contract DeployVaultUserLtvTracker is Script {
     struct ConfigParams {

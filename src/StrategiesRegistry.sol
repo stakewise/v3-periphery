@@ -39,7 +39,10 @@ contract StrategiesRegistry is Ownable2Step, IStrategiesRegistry {
     }
 
     /// @inheritdoc IStrategiesRegistry
-    function setStrategy(address strategy, bool enabled) external onlyOwner {
+    function setStrategy(
+        address strategy,
+        bool enabled
+    ) external onlyOwner {
         if (strategy == address(0)) revert Errors.ZeroAddress();
         if (strategies[strategy] == enabled) revert Errors.ValueNotChanged();
         // update strategy
@@ -48,7 +51,10 @@ contract StrategiesRegistry is Ownable2Step, IStrategiesRegistry {
     }
 
     /// @inheritdoc IStrategiesRegistry
-    function addStrategyProxy(bytes32 strategyProxyId, address proxy) external {
+    function addStrategyProxy(
+        bytes32 strategyProxyId,
+        address proxy
+    ) external {
         if (strategyProxyId == bytes32(0)) revert InvalidStrategyProxyId();
         if (proxy == address(0)) revert Errors.ZeroAddress();
 

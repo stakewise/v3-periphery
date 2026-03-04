@@ -6,7 +6,7 @@ import 'forge-std/Test.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
 import {IKeeperRewards} from '@stakewise-core/interfaces/IKeeperRewards.sol';
 import {Errors} from '@stakewise-core/libraries/Errors.sol';
-import {BoostHelpers, IBoostHelpers} from '../src/BoostHelpers.sol';
+import {BoostHelpers, IBoostHelpers} from '../src/helpers/BoostHelpers.sol';
 
 contract BoostHelpersTest is Test {
     struct TestUser {
@@ -91,8 +91,7 @@ contract BoostHelpersTest is Test {
                 proof: proof
             }),
             exitRequest: IBoostHelpers.ExitRequest({
-                positionTicket: 46_286_395_780_845_057_893_871,
-                timestamp: 1_739_934_863
+                positionTicket: 46_286_395_780_845_057_893_871, timestamp: 1_739_934_863
             }),
             expectedOsTokenShares: 109_436_477_264_713,
             expectedAssets: 0,
@@ -117,8 +116,7 @@ contract BoostHelpersTest is Test {
                 proof: proof
             }),
             exitRequest: IBoostHelpers.ExitRequest({
-                positionTicket: 46_286_395_780_845_057_893_871,
-                timestamp: 1_739_934_863
+                positionTicket: 46_286_395_780_845_057_893_871, timestamp: 1_739_934_863
             }),
             expectedOsTokenShares: 4_725_244_129_138_482_093,
             expectedAssets: 14_308_718_256_134_190,

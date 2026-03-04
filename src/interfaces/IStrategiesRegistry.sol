@@ -79,21 +79,31 @@ interface IStrategiesRegistry {
      * @param configName The name of the configuration
      * @param value The value of the configuration
      */
-    function setStrategyConfig(bytes32 strategyId, string calldata configName, bytes calldata value) external;
+    function setStrategyConfig(
+        bytes32 strategyId,
+        string calldata configName,
+        bytes calldata value
+    ) external;
 
     /**
      * @notice Function for enabling/disabling the Strategy. Can only be called by the owner.
      * @param strategy The address of the strategy to enable/disable
      * @param enabled The new status of the strategy
      */
-    function setStrategy(address strategy, bool enabled) external;
+    function setStrategy(
+        address strategy,
+        bool enabled
+    ) external;
 
     /**
      * @notice Function for adding Strategy proxy contract. Can only be called by the registered strategy.
      * @param strategyProxyId The ID of the proxy to add
      * @param proxy The address of the proxy to add
      */
-    function addStrategyProxy(bytes32 strategyProxyId, address proxy) external;
+    function addStrategyProxy(
+        bytes32 strategyProxyId,
+        address proxy
+    ) external;
 
     /**
      * @notice Function for initializing the registry. Can only be called once during the deployment.

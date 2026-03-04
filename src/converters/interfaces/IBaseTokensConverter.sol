@@ -44,7 +44,10 @@ interface IBaseTokensConverter {
      * @param _hash GPv2Order.Data digest
      * @param signature The abi.encoded tuple of (GPv2Order.Data, ComposableCoW.PayloadStruct)
      */
-    function isValidSignature(bytes32 _hash, bytes memory signature) external view returns (bytes4);
+    function isValidSignature(
+        bytes32 _hash,
+        bytes memory signature
+    ) external view returns (bytes4);
 
     /**
      * @notice Transfer accumulated assets to the Vault

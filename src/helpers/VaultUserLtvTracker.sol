@@ -24,7 +24,10 @@ contract VaultUserLtvTracker is IVaultUserLtvTracker {
      * @param keeper The address of the Keeper contract
      * @param osTokenVaultController The address of the OsTokenVaultController contract
      */
-    constructor(address keeper, address osTokenVaultController) {
+    constructor(
+        address keeper,
+        address osTokenVaultController
+    ) {
         _keeperRewards = IKeeperRewards(keeper);
         _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
     }

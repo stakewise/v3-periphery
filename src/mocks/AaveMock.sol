@@ -6,8 +6,8 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
-import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
+import {UUPSUpgradeable} from '@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol';
 import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 
 /**
@@ -50,13 +50,20 @@ contract AaveMock is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     uint256 public varInterestRatePerSecond;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address osToken, address assetToken, address osTokenVaultController) {
+    constructor(
+        address osToken,
+        address assetToken,
+        address osTokenVaultController
+    ) {
         _osToken = IERC20(osToken);
         _assetToken = IERC20(assetToken);
         _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
     }
 
-    function initialize(address initialOwner, uint256 _varInterestRatePerSecond) external initializer {
+    function initialize(
+        address initialOwner,
+        uint256 _varInterestRatePerSecond
+    ) external initializer {
         __Ownable_init(initialOwner);
         varInterestRatePerSecond = _varInterestRatePerSecond;
     }
@@ -194,7 +201,12 @@ contract AaveMock is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         debtData.lastUpdateTimestamp = block.timestamp;
     }
 
-    function repay(address, uint256 amount, uint256, address) external returns (uint256) {
+    function repay(
+        address,
+        uint256 amount,
+        uint256,
+        address
+    ) external returns (uint256) {
         // Accrue interest before repayment
         accrueInterest(msg.sender);
 
@@ -206,7 +218,13 @@ contract AaveMock is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         return amount;
     }
 
-    function borrow(address, uint256 amount, uint256, uint16, address) external {
+    function borrow(
+        address,
+        uint256 amount,
+        uint256,
+        uint16,
+        address
+    ) external {
         // Accrue interest before borrowing
         accrueInterest(msg.sender);
 
@@ -221,7 +239,11 @@ contract AaveMock is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         SafeERC20.safeTransfer(_assetToken, msg.sender, amount);
     }
 
-    function withdraw(address, uint256 amount, address to) external returns (uint256) {
+    function withdraw(
+        address,
+        uint256 amount,
+        address to
+    ) external returns (uint256) {
         balances[msg.sender] -= amount;
 
         _checkCollateral(msg.sender);
@@ -231,7 +253,12 @@ contract AaveMock is Initializable, UUPSUpgradeable, OwnableUpgradeable {
         return amount;
     }
 
-    function supply(address, uint256 amount, address, uint16) external {
+    function supply(
+        address,
+        uint256 amount,
+        address,
+        uint16
+    ) external {
         // Increase the user's balance
         balances[msg.sender] += amount;
 

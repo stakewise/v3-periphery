@@ -13,7 +13,7 @@ import {VaultsRegistry, IVaultsRegistry} from '@stakewise-core/vaults/VaultsRegi
 import {EthVaultFactory, IEthVaultFactory} from '@stakewise-core/vaults/ethereum/EthVaultFactory.sol';
 import {EthVault, IEthVault} from '@stakewise-core/vaults/ethereum/EthVault.sol';
 import {Keeper} from '@stakewise-core/keeper/Keeper.sol';
-import {IVaultUserLtvTracker, VaultUserLtvTracker} from '../src/VaultUserLtvTracker.sol';
+import {IVaultUserLtvTracker, VaultUserLtvTracker} from '../src/helpers/VaultUserLtvTracker.sol';
 
 contract VaultUserLtvTrackerTest is Test {
     uint256 public constant forkBlockNumber = 20_928_188;

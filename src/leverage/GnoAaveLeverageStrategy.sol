@@ -70,22 +70,28 @@ contract GnoAaveLeverageStrategy is AaveLeverageStrategy {
         uint256 depositAssets,
         uint256 mintOsTokenShares
     ) internal override returns (uint256) {
-        IStrategyProxy(proxy).execute(
-            address(vault), abi.encodeWithSelector(IGnoVault(vault).deposit.selector, depositAssets, proxy, address(0))
-        );
+        IStrategyProxy(proxy)
+            .execute(
+                address(vault),
+                abi.encodeWithSelector(IGnoVault(vault).deposit.selector, depositAssets, proxy, address(0))
+            );
         uint256 balanceBefore = _osToken.balanceOf(proxy);
-        IStrategyProxy(proxy).execute(
-            address(vault),
-            abi.encodeWithSelector(IGnoVault(vault).mintOsToken.selector, proxy, mintOsTokenShares, address(0))
-        );
+        IStrategyProxy(proxy)
+            .execute(
+                address(vault),
+                abi.encodeWithSelector(IGnoVault(vault).mintOsToken.selector, proxy, mintOsTokenShares, address(0))
+            );
         return _osToken.balanceOf(proxy) - balanceBefore;
     }
 
     /// @inheritdoc LeverageStrategy
-    function _transferAssets(address proxy, address receiver, uint256 amount) internal override {
-        IStrategyProxy(proxy).execute(
-            address(_assetToken), abi.encodeWithSelector(_assetToken.transfer.selector, receiver, amount)
-        );
+    function _transferAssets(
+        address proxy,
+        address receiver,
+        uint256 amount
+    ) internal override {
+        IStrategyProxy(proxy)
+            .execute(address(_assetToken), abi.encodeWithSelector(_assetToken.transfer.selector, receiver, amount));
     }
 
     /// @inheritdoc LeverageStrategy
@@ -99,8 +105,9 @@ contract GnoAaveLeverageStrategy is AaveLeverageStrategy {
         }
 
         // approve vault to spend GNO
-        IStrategyProxy(proxy).execute(
-            address(_assetToken), abi.encodeWithSelector(_assetToken.approve.selector, vault, type(uint256).max)
-        );
+        IStrategyProxy(proxy)
+            .execute(
+                address(_assetToken), abi.encodeWithSelector(_assetToken.approve.selector, vault, type(uint256).max)
+            );
     }
 }
