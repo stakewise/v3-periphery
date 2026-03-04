@@ -27,6 +27,9 @@ Available RPC endpoints: `mainnet`, `hoodi`, `chiado`, `gnosis` (configured in f
 - Tests use mainnet fork (requires `MAINNET_RPC_URL` env variable)
 - Fork block numbers are specified in test files (e.g., `forkBlockNumber = 23_117_000`)
 - Tests often use `vm.prank()`, `vm.warp()`, and `vm.startPrank()`/`vm.stopPrank()` for impersonation and time manipulation
+- Subgraph endpoints for fetching test data (vaults, allocators, leverage positions):
+  - Ethereum: `https://graphs.stakewise.io/mainnet/subgraphs/name/stakewise/prod`
+  - Gnosis: `https://graphs.stakewise.io/gnosis/subgraphs/name/stakewise/prod`
 
 ## Architecture Overview
 

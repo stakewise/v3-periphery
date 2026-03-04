@@ -8,6 +8,7 @@ import {StakeHelpers} from '../src/helpers/StakeHelpers.sol';
 
 contract DeployStakeHelpers is Script {
     struct ConfigParams {
+        address osToken;
         address keeper;
         address osTokenConfigV1;
         address osTokenConfig;
@@ -15,6 +16,7 @@ contract DeployStakeHelpers is Script {
     }
 
     function _readEnvVariables() internal view returns (ConfigParams memory params) {
+        params.osToken = vm.envAddress('OS_TOKEN');
         params.keeper = vm.envAddress('KEEPER');
         params.osTokenConfigV1 = vm.envAddress('OS_TOKEN_CONFIG_V1');
         params.osTokenConfig = vm.envAddress('OS_TOKEN_CONFIG');
@@ -31,7 +33,7 @@ contract DeployStakeHelpers is Script {
 
         // Deploy StakeHelpers.
         StakeHelpers stakeHelpers = new StakeHelpers(
-            params.keeper, params.osTokenConfigV1, params.osTokenConfig, params.osTokenVaultController
+            params.osToken, params.keeper, params.osTokenConfigV1, params.osTokenConfig, params.osTokenVaultController
         );
         console.log('StakeHelpers deployed at: ', address(stakeHelpers));
 

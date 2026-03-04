@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 import {ReentrancyGuardTransient} from '@openzeppelin/contracts/utils/ReentrancyGuardTransient.sol';
 import {IConditionalOrder, IConditionalOrderGenerator} from '@composable-cow/BaseConditionalOrder.sol';
 import {IVaultVersion} from '@stakewise-core/interfaces/IVaultVersion.sol';
