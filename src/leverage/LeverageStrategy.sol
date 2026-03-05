@@ -19,7 +19,7 @@ import {IOsTokenConfig} from '@stakewise-core/interfaces/IOsTokenConfig.sol';
 import {IOsTokenFlashLoans} from '@stakewise-core/interfaces/IOsTokenFlashLoans.sol';
 import {IOsTokenFlashLoanRecipient} from '@stakewise-core/interfaces/IOsTokenFlashLoanRecipient.sol';
 import {IVaultVersion} from '@stakewise-core/interfaces/IVaultVersion.sol';
-import {IBalancerVault} from './interfaces/IBalancerVault.sol';
+import {IBalancerRouter} from './interfaces/IBalancerRouter.sol';
 import {ILeverageStrategy} from './interfaces/ILeverageStrategy.sol';
 import {IStrategiesRegistry} from '../interfaces/IStrategiesRegistry.sol';
 import {IStrategyProxy} from '../interfaces/IStrategyProxy.sol';
@@ -38,7 +38,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     string internal constant _vaultForceExitLtvPercentConfigName = 'vaultForceExitLtvPercent';
     string internal constant _borrowForceExitLtvPercentConfigName = 'borrowForceExitLtvPercent';
     string internal constant _rescueVaultConfigName = 'rescueVault';
-    string internal constant _balancerPoolIdConfigName = 'balancerPoolId';
+    string internal constant _balancerPoolConfigName = 'balancerPool';
     string internal constant _strategyUpgradeConfigName = 'upgradeV2';
 
     // Strategy
@@ -52,13 +52,11 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     IOsTokenVaultEscrow internal immutable _osTokenVaultEscrow;
 
     // Balancer
-    IBalancerVault private immutable _balancerVault;
+    IBalancerRouter private immutable _balancerRouter;
 
     // Tokens
     IERC20 internal immutable _osToken;
     IERC20 internal immutable _assetToken;
-
-    mapping(address proxy => bool isExiting) public isStrategyProxyExiting;
 
     /**
      * @dev Constructor
@@ -70,7 +68,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
      * @param strategiesRegistry The address of the StrategiesRegistry contract
      * @param strategyProxyImplementation The address of the StrategyProxy implementation
-     * @param balancerVault The address of the BalancerVault contract
+     * @param balancerRouter The address of the Balancer V3 Router contract
      */
     constructor(
         address osToken,
@@ -81,7 +79,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         address osTokenVaultEscrow,
         address strategiesRegistry,
         address strategyProxyImplementation,
-        address balancerVault
+        address balancerRouter
     ) {
         _osToken = IERC20(osToken);
         _assetToken = IERC20(assetToken);
@@ -91,7 +89,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         _osTokenVaultEscrow = IOsTokenVaultEscrow(osTokenVaultEscrow);
         _strategiesRegistry = IStrategiesRegistry(strategiesRegistry);
         _strategyProxyImplementation = strategyProxyImplementation;
-        _balancerVault = IBalancerVault(balancerVault);
+        _balancerRouter = IBalancerRouter(balancerRouter);
     }
 
     /// @inheritdoc ILeverageStrategy
@@ -233,7 +231,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
 
         // fetch strategy proxy
         (address proxy,) = _getOrCreateStrategyProxy(vault, msg.sender);
-        if (isStrategyProxyExiting[proxy]) revert Errors.ExitRequestNotProcessed();
 
         // transfer osToken shares from user to the proxy
         IStrategyProxy(proxy)
@@ -304,6 +301,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         return _enterExitQueue(vault, user, _wad);
     }
 
+    /// @inheritdoc ILeverageStrategy
     function claimExitedAssets(
         address vault,
         address user,
@@ -311,7 +309,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     ) external {
         // fetch strategy proxy
         address proxy = getStrategyProxy(vault, user);
-        if (!isStrategyProxyExiting[proxy]) revert ExitQueueNotEntered();
 
         // fetch exit position
         (address owner, uint256 exitedAssets, uint256 exitedOsTokenShares) =
@@ -320,7 +317,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
 
         if (exitedOsTokenShares <= 1) {
             // osToken vault escrow position was redeemed or liquidated
-            delete isStrategyProxyExiting[proxy];
             emit ExitedAssetsClaimed(vault, user, 0, 0);
             return;
         }
@@ -341,9 +337,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         // withdraw left assets to the user
         (uint256 claimedOsTokenShares, uint256 claimedAssets) = _claimProxyAssets(proxy, user);
 
-        // update state
-        delete isStrategyProxyExiting[proxy];
-
         // emit event
         emit ExitedAssetsClaimed(vault, user, claimedOsTokenShares, claimedAssets);
     }
@@ -354,7 +347,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         ExitPosition calldata exitPosition
     ) external {
         address proxy = getStrategyProxy(vault, msg.sender);
-        if (!isStrategyProxyExiting[proxy]) revert ExitQueueNotEntered();
 
         // fetch exit position
         (address owner, uint256 exitedAssets, uint256 exitedOsTokenShares) =
@@ -363,7 +355,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
 
         if (exitedOsTokenShares <= 1) {
             // osToken vault escrow position was redeemed or liquidated
-            delete isStrategyProxyExiting[proxy];
             emit VaultAssetsRescued(vault, msg.sender, 0, 0);
             return;
         }
@@ -380,9 +371,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
             exitedOsTokenShares,
             abi.encode(FlashloanAction.RescueVaultAssets, vault, proxy, exitPosition.positionTicket)
         );
-
-        // update state
-        delete isStrategyProxyExiting[proxy];
 
         // withdraw left assets to the user
         (uint256 claimedOsTokenShares, uint256 claimedAssets) = _claimProxyAssets(proxy, msg.sender);
@@ -455,19 +443,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     }
 
     /// @inheritdoc ILeverageStrategy
-    function setStrategyProxyExiting(
-        address proxy
-    ) external {
-        if (!_strategiesRegistry.strategies(msg.sender)) {
-            revert Errors.AccessDenied();
-        }
-        if (isStrategyProxyExiting[proxy]) {
-            revert Errors.ValueNotChanged();
-        }
-        isStrategyProxyExiting[proxy] = true;
-    }
-
-    /// @inheritdoc ILeverageStrategy
     function upgradeProxy(
         address vault
     ) external {
@@ -486,10 +461,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         address newStrategy = abi.decode(vaultUpgradeConfig, (address));
         if (newStrategy == address(0) || newStrategy == address(this)) {
             revert Errors.ValueNotChanged();
-        }
-
-        if (isStrategyProxyExiting[proxy]) {
-            ILeverageStrategy(newStrategy).setStrategyProxyExiting(proxy);
         }
 
         // migrate strategy
@@ -515,7 +486,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
 
         // fetch strategy proxy
         address proxy = getStrategyProxy(vault, user);
-        if (isStrategyProxyExiting[proxy]) revert Errors.ExitRequestNotProcessed();
 
         // calculate the minted OsToken shares to transfer to the escrow
         (, uint256 mintedOsTokenShares) = getVaultState(vault, proxy);
@@ -529,9 +499,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
                 abi.encodeWithSelector(IVaultOsToken(vault).transferOsTokenPositionToEscrow.selector, osTokenShares)
             );
         positionTicket = abi.decode(response, (uint256));
-
-        // update state
-        isStrategyProxyExiting[proxy] = true;
 
         // emit event
         emit ExitQueueEntered(vault, user, positionTicket, block.timestamp, osTokenShares, positionPercent);
@@ -555,9 +522,12 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         _supplyOsTokenShares(proxy, _osToken.balanceOf(proxy));
 
         // calculate assets to borrow
-        uint256 borrowAssets =
-            Math.mulDiv(_osTokenVaultController.convertToAssets(flashloanOsTokenShares), _wad, getVaultLtv(vault));
-        borrowAssets += 2; // add 2 wei to avoid rounding errors
+        uint256 borrowAssets = Math.mulDiv(
+            _osTokenVaultController.convertToAssets(flashloanOsTokenShares) + 1,
+            _wad,
+            getVaultLtv(vault),
+            Math.Rounding.Ceil
+        );
 
         // borrow assets from the lending protocol
         _borrowAssets(proxy, borrowAssets);
@@ -605,7 +575,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         // deduct reserved osToken shares from the supplied osToken shares
         if (borrowedAssets != 0) {
             suppliedOsTokenShares -= _osTokenVaultController.convertToShares(
-                Math.mulDiv(borrowedAssets, _wad, getBorrowLtv())
+                Math.mulDiv(borrowedAssets, _wad, getBorrowLtv(), Math.Rounding.Ceil) + 1
             );
         }
 
@@ -681,40 +651,35 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         // transfer flashloan to proxy
         SafeERC20.safeTransfer(_osToken, proxy, flashloanOsTokenShares);
 
-        // fetch Balancer pool ID to execute swap
-        bytes memory balancerPoolIdConfig =
-            _strategiesRegistry.getStrategyConfig(strategyId(), _balancerPoolIdConfigName);
-        if (balancerPoolIdConfig.length == 0) revert InvalidBalancerPoolId();
-        bytes32 balancerPoolId = abi.decode(balancerPoolIdConfig, (bytes32));
+        // fetch Balancer pool address to execute swap
+        bytes memory balancerPoolConfig = _strategiesRegistry.getStrategyConfig(strategyId(), _balancerPoolConfigName);
+        if (balancerPoolConfig.length == 0) revert InvalidBalancerPool();
+        address balancerPool = abi.decode(balancerPoolConfig, (address));
 
-        // define balancer swap
-        IBalancerVault.SingleSwap memory singleSwap = IBalancerVault.SingleSwap({
-            poolId: balancerPoolId,
-            kind: IBalancerVault.SwapKind.GIVEN_OUT,
-            assetIn: address(_osToken),
-            assetOut: address(_assetToken),
-            amount: repayAssets,
-            userData: ''
-        });
-
-        // define balancer funds
-        IBalancerVault.FundManagement memory funds = IBalancerVault.FundManagement({
-            sender: proxy, fromInternalBalance: false, recipient: payable(proxy), toInternalBalance: false
-        });
-
-        // swap osToken shares to assets
+        // swap osToken shares to assets via Balancer V3 Router
         IStrategyProxy(proxy)
             .execute(
                 address(_osToken),
-                abi.encodeWithSelector(_osToken.approve.selector, address(_balancerVault), flashloanOsTokenShares)
+                abi.encodeWithSelector(_osToken.approve.selector, address(_balancerRouter), flashloanOsTokenShares)
             );
         IStrategyProxy(proxy)
             .execute(
-                address(_balancerVault),
+                address(_balancerRouter),
                 abi.encodeWithSelector(
-                    _balancerVault.swap.selector, singleSwap, funds, flashloanOsTokenShares, block.timestamp
+                    _balancerRouter.swapSingleTokenExactOut.selector,
+                    balancerPool,
+                    _osToken,
+                    _assetToken,
+                    repayAssets,
+                    flashloanOsTokenShares,
+                    block.timestamp,
+                    false,
+                    ''
                 )
             );
+        // reset approval
+        IStrategyProxy(proxy)
+            .execute(address(_osToken), abi.encodeWithSelector(_osToken.approve.selector, address(_balancerRouter), 0));
 
         // repay borrowed assets
         _repayAssets(proxy, repayAssets);
@@ -723,7 +688,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         (uint256 borrowedAssets, uint256 suppliedOsTokenShares) = getBorrowState(proxy);
         if (borrowedAssets != 0) {
             suppliedOsTokenShares -= _osTokenVaultController.convertToShares(
-                Math.mulDiv(borrowedAssets, _wad, getBorrowLtv())
+                Math.mulDiv(borrowedAssets, _wad, getBorrowLtv(), Math.Rounding.Ceil) + 1
             );
         }
 

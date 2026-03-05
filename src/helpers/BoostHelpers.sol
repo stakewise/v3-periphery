@@ -68,9 +68,9 @@ contract BoostHelpers is IBoostHelpers {
         address user,
         address vault,
         IKeeperRewards.HarvestParams memory harvestParams,
-        ExitRequest calldata exitRequest
+        ExitRequest[] calldata exitRequests
     ) external returns (uint256) {
-        BoostDetails memory boost = _calculateBoost(user, vault, harvestParams, exitRequest);
+        BoostDetails memory boost = _calculateBoost(user, vault, harvestParams, exitRequests);
         return boost.osTokenShares + _osTokenCtrl.convertToShares(boost.assets);
     }
 
@@ -79,9 +79,9 @@ contract BoostHelpers is IBoostHelpers {
         address user,
         address vault,
         IKeeperRewards.HarvestParams memory harvestParams,
-        ExitRequest calldata exitRequest
+        ExitRequest[] calldata exitRequests
     ) external returns (BoostDetails memory) {
-        return _calculateBoost(user, vault, harvestParams, exitRequest);
+        return _calculateBoost(user, vault, harvestParams, exitRequests);
     }
 
     /// @inheritdoc IBoostHelpers
@@ -128,14 +128,14 @@ contract BoostHelpers is IBoostHelpers {
      * @param user The address of the user
      * @param vault The address of the vault
      * @param harvestParams The harvest parameters to update the vault state if needed.
-     * @param exitRequest The exit request details if there is an exiting position.
+     * @param exitRequests An array of exit request details if there are exiting positions.
      * @return boost The boost details
      */
     function _calculateBoost(
         address user,
         address vault,
         IKeeperRewards.HarvestParams memory harvestParams,
-        ExitRequest calldata exitRequest
+        ExitRequest[] calldata exitRequests
     ) private returns (BoostDetails memory boost) {
         if (_keeper.canHarvest(vault)) {
             if (IVaultMev(vault).mevEscrow() != _sharedMevEscrow) {
@@ -149,8 +149,8 @@ contract BoostHelpers is IBoostHelpers {
         (uint256 borrowedAssets, uint256 suppliedOsTokenShares) = leverageStrategy.getBorrowState(proxy);
         (uint256 stakedAssets, uint256 mintedOsTokenShares) = leverageStrategy.getVaultState(vault, proxy);
 
-        if (leverageStrategy.isStrategyProxyExiting(proxy)) {
-            (uint256 exitingOsTokenShares, uint256 exitingAssets) = _getExitRequestState(vault, proxy, exitRequest);
+        for (uint256 i = 0; i < exitRequests.length; i++) {
+            (uint256 exitingOsTokenShares, uint256 exitingAssets) = _getExitRequestState(vault, proxy, exitRequests[i]);
             mintedOsTokenShares += exitingOsTokenShares;
             stakedAssets += exitingAssets;
         }

@@ -5,7 +5,7 @@ pragma solidity ^0.8.26;
 import {Script} from 'forge-std/Script.sol';
 import {console} from 'forge-std/console.sol';
 import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
-import {BalancerVaultMock} from '../src/mocks/BalancerVaultMock.sol';
+import {BalancerRouterMock} from '../src/mocks/BalancerVaultMock.sol';
 
 contract DeployBalancerVaultMock is Script {
     struct ConfigParams {
@@ -30,12 +30,12 @@ contract DeployBalancerVaultMock is Script {
         // Read environment variables.
         ConfigParams memory params = _readEnvVariables();
 
-        // Deploy BalancerVaultMock mock.
+        // Deploy BalancerRouterMock mock.
         address implementation =
-            address(new BalancerVaultMock(params.osToken, params.assetToken, params.osTokenVaultController));
-        address balancerVaultMock = address(new ERC1967Proxy(implementation, ''));
-        BalancerVaultMock(balancerVaultMock).initialize(params.governor);
-        console.log('BalancerVaultMock deployed at: ', balancerVaultMock);
+            address(new BalancerRouterMock(params.osToken, params.assetToken, params.osTokenVaultController));
+        address balancerRouterMock = address(new ERC1967Proxy(implementation, ''));
+        BalancerRouterMock(balancerRouterMock).initialize(params.governor);
+        console.log('BalancerRouterMock deployed at: ', balancerRouterMock);
 
         vm.stopBroadcast();
     }

@@ -14,10 +14,9 @@ import {IStrategy} from '../../interfaces/IStrategy.sol';
 interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     error InvalidFlashloanAction();
     error InvalidMaxSlippagePercent();
-    error ExitQueueNotEntered();
     error InvalidExitQueuePercent();
     error InvalidExitQueueTicket();
-    error InvalidBalancerPoolId();
+    error InvalidBalancerPool();
 
     /**
      * @notice Enum for flashloan actions
@@ -183,15 +182,6 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     ) external view returns (bool);
 
     /**
-     * @notice Checks if the proxy is exiting
-     * @param proxy The address of the proxy
-     * @return isExiting True if the proxy is exiting
-     */
-    function isStrategyProxyExiting(
-        address proxy
-    ) external view returns (bool isExiting);
-
-    /**
      * @notice Calculates the amount of osToken shares to flashloan
      * @param vault The address of the vault
      * @param osTokenShares The amount of osToken shares at hand
@@ -296,14 +286,6 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
         address vault,
         uint256 assets,
         uint256 maxSlippagePercent
-    ) external;
-
-    /**
-     * @notice Set the strategy proxy exiting state. Can only be called by the proxy owner, i.e. previous strategy.
-     * @param proxy The address of the strategy proxy
-     */
-    function setStrategyProxyExiting(
-        address proxy
     ) external;
 
     /**
