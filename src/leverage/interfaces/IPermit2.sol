@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.26;
+
+/**
+ * @title IPermit2
+ * @notice Minimal interface for Uniswap's Permit2 allowance approval
+ */
+interface IPermit2 {
+    function approve(
+        address token,
+        address spender,
+        uint160 amount,
+        uint48 expiration
+    ) external;
+}

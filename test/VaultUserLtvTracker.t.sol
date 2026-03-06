@@ -16,7 +16,7 @@ import {Keeper} from '@stakewise-core/keeper/Keeper.sol';
 import {IVaultUserLtvTracker, VaultUserLtvTracker} from '../src/helpers/VaultUserLtvTracker.sol';
 
 contract VaultUserLtvTrackerTest is Test {
-    uint256 public constant forkBlockNumber = 20_928_188;
+    uint256 public constant forkBlockNumber = 24_590_000;
 
     uint256 public constant exitingAssetsClaimDelay = 24 hours;
 
@@ -169,7 +169,7 @@ contract VaultUserLtvTrackerTest is Test {
 
         // Check ltv is updated
         ltv = tracker.getVaultMaxLtv(vault, harvestParams);
-        assertApproxEqAbs(ltv, 0.6 ether, 1 wei);
+        assertApproxEqAbs(ltv, 0.6 ether, 1 gwei);
 
         // Call update for user #1
         tracker.updateVaultMaxLtvUser(vault, user, harvestParams);

@@ -16,7 +16,6 @@ contract DeployEthAaveLeverageStrategy is Script {
         address osTokenConfig;
         address osTokenFlashLoans;
         address osTokenVaultEscrow;
-        address balancerRouter;
         address aavePool;
         address aaveOsToken;
         address aaveVarDebtAssetToken;
@@ -28,7 +27,7 @@ contract DeployEthAaveLeverageStrategy is Script {
         uint256 maxBorrowLtvPercent;
         uint256 vaultForceExitLtvPercent;
         uint256 borrowForceExitLtvPercent;
-        address balancerPool;
+        address osTokenSwap;
     }
 
     function _readEnvVariables() internal view returns (ConfigParams memory params) {
@@ -38,7 +37,6 @@ contract DeployEthAaveLeverageStrategy is Script {
         params.osTokenConfig = vm.envAddress('OS_TOKEN_CONFIG');
         params.osTokenFlashLoans = vm.envAddress('OS_TOKEN_FLASH_LOANS');
         params.osTokenVaultEscrow = vm.envAddress('OS_TOKEN_VAULT_ESCROW');
-        params.balancerRouter = vm.envAddress('BALANCER_ROUTER');
         params.aavePool = vm.envAddress('AAVE_POOL');
         params.aaveOsToken = vm.envAddress('AAVE_OS_TOKEN');
         params.aaveVarDebtAssetToken = vm.envAddress('AAVE_VAR_DEBT_ASSET_TOKEN');
@@ -47,7 +45,7 @@ contract DeployEthAaveLeverageStrategy is Script {
         params.vaultForceExitLtvPercent = vm.envUint('VAULT_FORCE_EXIT_LTV_PERCENT');
         params.borrowForceExitLtvPercent = vm.envUint('BORROW_FORCE_EXIT_LTV_PERCENT');
         params.rescueVault = vm.envAddress('RESCUE_VAULT');
-        params.balancerPool = vm.envAddress('BALANCER_POOL');
+        params.osTokenSwap = vm.envAddress('OS_TOKEN_SWAP');
         params.governor = vm.envAddress('GOVERNOR');
         params.strategiesRegistry = vm.envAddress('STRATEGIES_REGISTRY');
         params.strategyProxyImplementation = vm.envAddress('STRATEGY_PROXY_IMPLEMENTATION');
@@ -71,7 +69,6 @@ contract DeployEthAaveLeverageStrategy is Script {
             params.osTokenVaultEscrow,
             params.strategiesRegistry,
             params.strategyProxyImplementation,
-            params.balancerRouter,
             params.aavePool,
             params.aaveOsToken,
             params.aaveVarDebtAssetToken

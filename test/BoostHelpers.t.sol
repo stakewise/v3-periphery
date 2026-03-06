@@ -13,14 +13,14 @@ contract BoostHelpersTest is Test {
         address user;
         address vault;
         IKeeperRewards.HarvestParams harvestParams;
-        IBoostHelpers.ExitRequest exitRequest;
+        IBoostHelpers.ExitRequest[] exitRequests;
         uint256 expectedOsTokenShares;
         uint256 expectedAssets;
         uint256 expectedBorrowLtv;
         uint256 expectedOsTokenLtv;
     }
 
-    uint256 public constant forkBlockNumber = 21_916_340;
+    uint256 public constant forkBlockNumber = 24_590_000;
     address public constant keeper = 0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5;
     address public constant leverageStrategyV1 = 0x48cD14FDB8e72A03C8D952af081DBB127D6281fc;
     address public constant osTokenCtrl = 0x2A261e60FB14586B474C208b1B7AC6D0f5000306;
@@ -52,128 +52,115 @@ contract BoostHelpersTest is Test {
         bytes32[] memory proof = new bytes32[](6);
 
         // normal user
-        proof[0] = 0x522856d4c8dcaba7abdc296465ca2aaea917ae37ace35595fd72642725ede567;
-        proof[1] = 0x19db8aef400f61efdaa0b2b45b3c86c7ce38d72c53a9c237874ac4d31bf26dae;
-        proof[2] = 0x4a47a5899f0d77fbe53ee5a882274dd85a52ea6b2d23bbd2175203c229898afe;
-        proof[3] = 0x4c8ba14f312579e1dd1b1043ef51fcea65275239bbbd51555751db1d020786e0;
-        proof[4] = 0x8cdb8e40170f870b9dcba5bbfa96a6ef4167e7983971825b90cfdd6c50ed2544;
-        proof[5] = 0xa08e66785a57107770df7b897ece1f8d2c98bc380b2aef45088cd32ff239dba8;
-        boostUser = TestUser({
-            user: 0x13cf846853a530b0eD234dDC382DD37eC2460725,
-            vault: 0xAC0F906E433d58FA868F936E8A43230473652885,
-            harvestParams: IKeeperRewards.HarvestParams({
-                rewardsRoot: 0x728664e6559cce31f7f79f0c2d67386adcf29618c76a56a7a936eb20d0b3a6d1,
-                reward: 11_167_650_217_113_547_633_930,
-                unlockedMevReward: 548_385_949_444_245_074_397,
-                proof: proof
-            }),
-            exitRequest: IBoostHelpers.ExitRequest({positionTicket: 0, timestamp: 0}),
-            expectedOsTokenShares: 1_101_224_270_038_765_479,
-            expectedAssets: 3_320_079_387_895_743,
-            expectedBorrowLtv: 929_821_042_531_042_167,
-            expectedOsTokenLtv: 995_079_619_555_973_200
+        proof[0] = 0xd1fb015279733ebcdccf0019ed49b08f57a5f1e69ec92b19b9468c383a6296cf;
+        proof[1] = 0x313947a6f0211b8a89db0dc504282a246aab99daf624df1103760bd1a23941be;
+        proof[2] = 0x941055dd7de858c1d2e11a4aeab96c2c3c9f5408b336fafcb6abacf91bd61a90;
+        proof[3] = 0xae4662883b744a2f89cec0a2e7f4069ffb8d8a57f02afd8adf128d59e302a8ae;
+        proof[4] = 0x9886f710405857e0abb532957d0c5c52e03690da9b27df8004dca3d94925d475;
+        proof[5] = 0x44c7c0c9551bc4487163dfa90079f2aec2d162b7b650df83d2f4a9e7f9f7bf50;
+        IBoostHelpers.ExitRequest[] memory emptyExitRequests = new IBoostHelpers.ExitRequest[](0);
+        boostUser.user = 0x13cf846853a530b0eD234dDC382DD37eC2460725;
+        boostUser.vault = 0xAC0F906E433d58FA868F936E8A43230473652885;
+        boostUser.harvestParams = IKeeperRewards.HarvestParams({
+            rewardsRoot: 0x55a08dc786e1d094e22ade4bd81a16cb0305208d19120c3497999b9b8593a954,
+            reward: 16_053_265_687_382_663_914_870,
+            unlockedMevReward: 1_060_411_105_388_361_355_337,
+            proof: proof
         });
+        boostUser.exitRequests = emptyExitRequests;
+        boostUser.expectedOsTokenShares = 1_082_795_615_214_266_982;
+        boostUser.expectedAssets = 42_675_136_670_297_202;
+        boostUser.expectedBorrowLtv = 930_387_192_220_571_773;
+        boostUser.expectedOsTokenLtv = 993_155_856_048_684_479;
 
-        // user with unboost position
-        proof[0] = 0x522856d4c8dcaba7abdc296465ca2aaea917ae37ace35595fd72642725ede567;
-        proof[1] = 0x19db8aef400f61efdaa0b2b45b3c86c7ce38d72c53a9c237874ac4d31bf26dae;
-        proof[2] = 0x4a47a5899f0d77fbe53ee5a882274dd85a52ea6b2d23bbd2175203c229898afe;
-        proof[3] = 0x4c8ba14f312579e1dd1b1043ef51fcea65275239bbbd51555751db1d020786e0;
-        proof[4] = 0x8cdb8e40170f870b9dcba5bbfa96a6ef4167e7983971825b90cfdd6c50ed2544;
-        proof[5] = 0xa08e66785a57107770df7b897ece1f8d2c98bc380b2aef45088cd32ff239dba8;
-        unboostUser = TestUser({
-            user: 0x5952f70FEF1CbC26856d149646D4A8F97E923eE7,
-            vault: 0xAC0F906E433d58FA868F936E8A43230473652885,
-            harvestParams: IKeeperRewards.HarvestParams({
-                rewardsRoot: 0x728664e6559cce31f7f79f0c2d67386adcf29618c76a56a7a936eb20d0b3a6d1,
-                reward: 11_167_650_217_113_547_633_930,
-                unlockedMevReward: 548_385_949_444_245_074_397,
-                proof: proof
-            }),
-            exitRequest: IBoostHelpers.ExitRequest({
-                positionTicket: 46_286_395_780_845_057_893_871, timestamp: 1_739_934_863
-            }),
-            expectedOsTokenShares: 109_436_477_264_713,
-            expectedAssets: 0,
-            expectedBorrowLtv: 929_959_926_131_369_115,
-            expectedOsTokenLtv: 995_126_260_333_212_324
+        // user with smaller boost position (no longer exiting)
+        proof[0] = 0xd1fb015279733ebcdccf0019ed49b08f57a5f1e69ec92b19b9468c383a6296cf;
+        proof[1] = 0x313947a6f0211b8a89db0dc504282a246aab99daf624df1103760bd1a23941be;
+        proof[2] = 0x941055dd7de858c1d2e11a4aeab96c2c3c9f5408b336fafcb6abacf91bd61a90;
+        proof[3] = 0xae4662883b744a2f89cec0a2e7f4069ffb8d8a57f02afd8adf128d59e302a8ae;
+        proof[4] = 0x9886f710405857e0abb532957d0c5c52e03690da9b27df8004dca3d94925d475;
+        proof[5] = 0x44c7c0c9551bc4487163dfa90079f2aec2d162b7b650df83d2f4a9e7f9f7bf50;
+        unboostUser.user = 0x5952f70FEF1CbC26856d149646D4A8F97E923eE7;
+        unboostUser.vault = 0xAC0F906E433d58FA868F936E8A43230473652885;
+        unboostUser.harvestParams = IKeeperRewards.HarvestParams({
+            rewardsRoot: 0x55a08dc786e1d094e22ade4bd81a16cb0305208d19120c3497999b9b8593a954,
+            reward: 16_053_265_687_382_663_914_870,
+            unlockedMevReward: 1_060_411_105_388_361_355_337,
+            proof: proof
         });
+        unboostUser.exitRequests = emptyExitRequests;
+        unboostUser.expectedOsTokenShares = 43_683_873_197_463;
+        unboostUser.expectedAssets = 911_944_764_203;
+        unboostUser.expectedBorrowLtv = 930_654_558_911_943_100;
+        unboostUser.expectedOsTokenLtv = 993_084_729_329_290_077;
 
         // user from unharvested vault
-        proof[0] = 0x5a2617f6bce42a03d7f715e8e836d62d3480cda127803c6236e9a9fa1e7db052;
-        proof[1] = 0x66cec6e7c74a139907b29268ff090689dbdcc1fe181de103e978f8b55e513be3;
-        proof[2] = 0xef8251a4cf4d3159ed43b5b24371e13d5a2e533567447d6864d0f1f4d206c590;
-        proof[3] = 0x2449d9af394be89797ee06d3e94df3a1df61d8d1351a8c1fdd7895cafc285e13;
-        proof[4] = 0xf2bc732a0876eef2c878b4d6176c6655381622354eb4b7644274fa97883c8bae;
-        proof[5] = 0x5e2c87248f0dc86415ba413b5d7fcffbf3ef518f904545b6194961dff2c63492;
-        notHarvestedVaultUser = TestUser({
-            user: 0xf506187Dc3f5c4C9C91cFf1D1AD7eaf9e305242F,
-            vault: 0x089A97A8bC0C0F016f89F9CF42181Ff06afB2Daf,
-            harvestParams: IKeeperRewards.HarvestParams({
-                rewardsRoot: 0x728664e6559cce31f7f79f0c2d67386adcf29618c76a56a7a936eb20d0b3a6d1,
-                reward: 5_923_134_143_423_208_780,
-                unlockedMevReward: 811_766_485_452_869_841,
-                proof: proof
-            }),
-            exitRequest: IBoostHelpers.ExitRequest({
-                positionTicket: 46_286_395_780_845_057_893_871, timestamp: 1_739_934_863
-            }),
-            expectedOsTokenShares: 4_725_244_129_138_482_093,
-            expectedAssets: 14_308_718_256_134_190,
-            expectedBorrowLtv: 929_821_081_306_850_125,
-            expectedOsTokenLtv: 899_822_147_456_547_217
+        proof[0] = 0xe313d7505307f2c437dc15c4f001f3ed4fc08cd4890d9bbed238c92bbd901559;
+        proof[1] = 0x785e970799f16fe4b5ab823b8f863550462904c141d9698512e9f1e79807df80;
+        proof[2] = 0x428ba395930c228630c9751b234e6f57ea1566f22f5b793e45ee8b0e5143df1d;
+        proof[3] = 0xb308ec7f14cc4dcc1dc83823790f28f3219f82ec7eb5018d48dcf588752be7c1;
+        proof[4] = 0xedc27a8537042cdf19ee12dafd46230066b40ca9d0a077ec004639a56e9e50fa;
+        proof[5] = 0x44c7c0c9551bc4487163dfa90079f2aec2d162b7b650df83d2f4a9e7f9f7bf50;
+        notHarvestedVaultUser.user = 0xf506187Dc3f5c4C9C91cFf1D1AD7eaf9e305242F;
+        notHarvestedVaultUser.vault = 0x089A97A8bC0C0F016f89F9CF42181Ff06afB2Daf;
+        notHarvestedVaultUser.harvestParams = IKeeperRewards.HarvestParams({
+            rewardsRoot: 0x55a08dc786e1d094e22ade4bd81a16cb0305208d19120c3497999b9b8593a954,
+            reward: 17_432_962_286_232_694_581,
+            unlockedMevReward: 2_072_259_628_203_403_437,
+            proof: proof
         });
+        notHarvestedVaultUser.exitRequests = emptyExitRequests;
+        notHarvestedVaultUser.expectedOsTokenShares = 8_610_372_451_592_374_469;
+        notHarvestedVaultUser.expectedAssets = 210_118_634_932_931_157;
+        notHarvestedVaultUser.expectedBorrowLtv = 930_619_897_253_501_114;
+        notHarvestedVaultUser.expectedOsTokenLtv = 897_238_987_889_839_050;
 
         // user without position
-        proof[0] = 0x5a2617f6bce42a03d7f715e8e836d62d3480cda127803c6236e9a9fa1e7db052;
-        proof[1] = 0x66cec6e7c74a139907b29268ff090689dbdcc1fe181de103e978f8b55e513be3;
-        proof[2] = 0xef8251a4cf4d3159ed43b5b24371e13d5a2e533567447d6864d0f1f4d206c590;
-        proof[3] = 0x2449d9af394be89797ee06d3e94df3a1df61d8d1351a8c1fdd7895cafc285e13;
-        proof[4] = 0xf2bc732a0876eef2c878b4d6176c6655381622354eb4b7644274fa97883c8bae;
-        proof[5] = 0x5e2c87248f0dc86415ba413b5d7fcffbf3ef518f904545b6194961dff2c63492;
-        noBoostPositionUser = TestUser({
-            user: 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045,
-            vault: 0xAC0F906E433d58FA868F936E8A43230473652885,
-            harvestParams: IKeeperRewards.HarvestParams({
-                rewardsRoot: 0x728664e6559cce31f7f79f0c2d67386adcf29618c76a56a7a936eb20d0b3a6d1,
-                reward: 11_167_650_217_113_547_633_930,
-                unlockedMevReward: 548_385_949_444_245_074_397,
-                proof: proof
-            }),
-            exitRequest: IBoostHelpers.ExitRequest({positionTicket: 0, timestamp: 0}),
-            expectedOsTokenShares: 0,
-            expectedAssets: 0,
-            expectedBorrowLtv: 0,
-            expectedOsTokenLtv: 0
+        proof[0] = 0xd1fb015279733ebcdccf0019ed49b08f57a5f1e69ec92b19b9468c383a6296cf;
+        proof[1] = 0x313947a6f0211b8a89db0dc504282a246aab99daf624df1103760bd1a23941be;
+        proof[2] = 0x941055dd7de858c1d2e11a4aeab96c2c3c9f5408b336fafcb6abacf91bd61a90;
+        proof[3] = 0xae4662883b744a2f89cec0a2e7f4069ffb8d8a57f02afd8adf128d59e302a8ae;
+        proof[4] = 0x9886f710405857e0abb532957d0c5c52e03690da9b27df8004dca3d94925d475;
+        proof[5] = 0x44c7c0c9551bc4487163dfa90079f2aec2d162b7b650df83d2f4a9e7f9f7bf50;
+        noBoostPositionUser.user = 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045;
+        noBoostPositionUser.vault = 0xAC0F906E433d58FA868F936E8A43230473652885;
+        noBoostPositionUser.harvestParams = IKeeperRewards.HarvestParams({
+            rewardsRoot: 0x55a08dc786e1d094e22ade4bd81a16cb0305208d19120c3497999b9b8593a954,
+            reward: 16_053_265_687_382_663_914_870,
+            unlockedMevReward: 1_060_411_105_388_361_355_337,
+            proof: proof
         });
+        noBoostPositionUser.exitRequests = emptyExitRequests;
+        noBoostPositionUser.expectedOsTokenShares = 0;
+        noBoostPositionUser.expectedAssets = 0;
+        noBoostPositionUser.expectedBorrowLtv = 0;
+        noBoostPositionUser.expectedOsTokenLtv = 0;
 
         // user with withdrawn position
-        proof[0] = 0x3cb48ba599f2a359cd9ddfff23269a8903a95f2b38f3f7ae3e254808d546f344;
-        proof[1] = 0x3c06bb8543b9d05bec7f89e5e18fe8c6cb0a75f66b6818f23fb5ddd7b671a114;
-        proof[2] = 0x76a8315fa7f44c37292b4d80bca4cee75d151f43c21edf4c9f3719d32541d2fc;
-        proof[3] = 0x4c8ba14f312579e1dd1b1043ef51fcea65275239bbbd51555751db1d020786e0;
-        proof[4] = 0x8cdb8e40170f870b9dcba5bbfa96a6ef4167e7983971825b90cfdd6c50ed2544;
-        proof[5] = 0xa08e66785a57107770df7b897ece1f8d2c98bc380b2aef45088cd32ff239dba8;
-        withdrawnPositionUser = TestUser({
-            user: 0xD2F060d400f7e32c6594733773ac1277f5b5b3c0,
-            vault: 0xe6d8d8aC54461b1C5eD15740EEe322043F696C08,
-            harvestParams: IKeeperRewards.HarvestParams({
-                rewardsRoot: 0x728664e6559cce31f7f79f0c2d67386adcf29618c76a56a7a936eb20d0b3a6d1,
-                reward: 408_368_175_457_000_000_000,
-                unlockedMevReward: 0,
-                proof: proof
-            }),
-            exitRequest: IBoostHelpers.ExitRequest({positionTicket: 0, timestamp: 0}),
-            expectedOsTokenShares: 15_729_105_186,
-            expectedAssets: 0,
-            expectedBorrowLtv: 929_995_785_479_068_598,
-            expectedOsTokenLtv: 0
+        proof[0] = 0xe1ce7efda0ff0b8c8ce4da2dd899a03c8bc281d7e01e5b09e3c4a72aabdd7f1d;
+        proof[1] = 0x785e970799f16fe4b5ab823b8f863550462904c141d9698512e9f1e79807df80;
+        proof[2] = 0x428ba395930c228630c9751b234e6f57ea1566f22f5b793e45ee8b0e5143df1d;
+        proof[3] = 0xb308ec7f14cc4dcc1dc83823790f28f3219f82ec7eb5018d48dcf588752be7c1;
+        proof[4] = 0xedc27a8537042cdf19ee12dafd46230066b40ca9d0a077ec004639a56e9e50fa;
+        proof[5] = 0x44c7c0c9551bc4487163dfa90079f2aec2d162b7b650df83d2f4a9e7f9f7bf50;
+        withdrawnPositionUser.user = 0xD2F060d400f7e32c6594733773ac1277f5b5b3c0;
+        withdrawnPositionUser.vault = 0xe6d8d8aC54461b1C5eD15740EEe322043F696C08;
+        withdrawnPositionUser.harvestParams = IKeeperRewards.HarvestParams({
+            rewardsRoot: 0x55a08dc786e1d094e22ade4bd81a16cb0305208d19120c3497999b9b8593a954,
+            reward: 2_267_299_792_543_000_000_000,
+            unlockedMevReward: 0,
+            proof: proof
         });
+        withdrawnPositionUser.exitRequests = emptyExitRequests;
+        withdrawnPositionUser.expectedOsTokenShares = 0;
+        withdrawnPositionUser.expectedAssets = 0;
+        withdrawnPositionUser.expectedBorrowLtv = 930_562_041_566_132_194;
+        withdrawnPositionUser.expectedOsTokenLtv = 0;
     }
 
     function testBoostUser() public {
         IBoostHelpers.BoostDetails memory details = boostHelpers.getBoostDetails(
-            boostUser.user, boostUser.vault, boostUser.harvestParams, boostUser.exitRequest
+            boostUser.user, boostUser.vault, boostUser.harvestParams, boostUser.exitRequests
         );
 
         assertEq(details.osTokenShares, boostUser.expectedOsTokenShares, 'boostUser osTokenShares mismatch');
@@ -183,7 +170,7 @@ contract BoostHelpersTest is Test {
 
         // getBoostOsTokenShares returns: boost.osTokenShares + osTokenCtrl.convertToShares(boost.assets)
         uint256 totalShares = boostHelpers.getBoostOsTokenShares(
-            boostUser.user, boostUser.vault, boostUser.harvestParams, boostUser.exitRequest
+            boostUser.user, boostUser.vault, boostUser.harvestParams, boostUser.exitRequests
         );
         uint256 convertedShares = IOsTokenVaultController(osTokenCtrl).convertToShares(boostUser.expectedAssets);
         uint256 expectedTotalShares = boostUser.expectedOsTokenShares + convertedShares;
@@ -192,7 +179,7 @@ contract BoostHelpersTest is Test {
 
     function testUnboostUser() public {
         IBoostHelpers.BoostDetails memory details = boostHelpers.getBoostDetails(
-            unboostUser.user, unboostUser.vault, unboostUser.harvestParams, unboostUser.exitRequest
+            unboostUser.user, unboostUser.vault, unboostUser.harvestParams, unboostUser.exitRequests
         );
 
         assertEq(details.osTokenShares, unboostUser.expectedOsTokenShares, 'unboostUser osTokenShares mismatch');
@@ -201,20 +188,17 @@ contract BoostHelpersTest is Test {
         assertEq(details.osTokenLtv, unboostUser.expectedOsTokenLtv, 'unboostUser osTokenLtv mismatch');
 
         uint256 totalShares = boostHelpers.getBoostOsTokenShares(
-            unboostUser.user, unboostUser.vault, unboostUser.harvestParams, unboostUser.exitRequest
+            unboostUser.user, unboostUser.vault, unboostUser.harvestParams, unboostUser.exitRequests
         );
         uint256 convertedShares = IOsTokenVaultController(osTokenCtrl).convertToShares(unboostUser.expectedAssets);
         uint256 expectedTotalShares = unboostUser.expectedOsTokenShares + convertedShares;
         assertEq(totalShares, expectedTotalShares, 'unboostUser total shares mismatch');
 
-        TestUser memory invalidExitRequest = unboostUser;
-        invalidExitRequest.exitRequest.positionTicket = 0;
+        IBoostHelpers.ExitRequest[] memory invalidExitRequests = new IBoostHelpers.ExitRequest[](1);
+        invalidExitRequests[0] = IBoostHelpers.ExitRequest({positionTicket: 0, timestamp: 1_739_934_863});
         vm.expectRevert(Errors.InvalidPosition.selector);
         boostHelpers.getBoostDetails(
-            invalidExitRequest.user,
-            invalidExitRequest.vault,
-            invalidExitRequest.harvestParams,
-            invalidExitRequest.exitRequest
+            unboostUser.user, unboostUser.vault, unboostUser.harvestParams, invalidExitRequests
         );
     }
 
@@ -223,7 +207,7 @@ contract BoostHelpersTest is Test {
             notHarvestedVaultUser.user,
             notHarvestedVaultUser.vault,
             notHarvestedVaultUser.harvestParams,
-            notHarvestedVaultUser.exitRequest
+            notHarvestedVaultUser.exitRequests
         );
 
         assertEq(
@@ -241,7 +225,7 @@ contract BoostHelpersTest is Test {
             notHarvestedVaultUser.user,
             notHarvestedVaultUser.vault,
             notHarvestedVaultUser.harvestParams,
-            notHarvestedVaultUser.exitRequest
+            notHarvestedVaultUser.exitRequests
         );
         uint256 convertedShares =
             IOsTokenVaultController(osTokenCtrl).convertToShares(notHarvestedVaultUser.expectedAssets);
@@ -254,7 +238,7 @@ contract BoostHelpersTest is Test {
             noBoostPositionUser.user,
             noBoostPositionUser.vault,
             noBoostPositionUser.harvestParams,
-            noBoostPositionUser.exitRequest
+            noBoostPositionUser.exitRequests
         );
 
         assertEq(
@@ -272,7 +256,7 @@ contract BoostHelpersTest is Test {
             withdrawnPositionUser.user,
             withdrawnPositionUser.vault,
             withdrawnPositionUser.harvestParams,
-            withdrawnPositionUser.exitRequest
+            withdrawnPositionUser.exitRequests
         );
 
         assertEq(

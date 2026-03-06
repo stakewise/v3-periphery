@@ -31,7 +31,6 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
      * @param strategiesRegistry The address of the StrategiesRegistry contract
      * @param strategyProxyImplementation The address of the StrategyProxy implementation
-     * @param balancerRouter The address of the Balancer V3 Router contract
      * @param aavePool The address of the Aave pool contract
      * @param aaveOsToken The address of the Aave OsToken contract
      * @param aaveVarDebtAssetToken The address of the Aave variable debt asset token contract
@@ -45,7 +44,6 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
         address osTokenVaultEscrow,
         address strategiesRegistry,
         address strategyProxyImplementation,
-        address balancerRouter,
         address aavePool,
         address aaveOsToken,
         address aaveVarDebtAssetToken
@@ -58,8 +56,7 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
             osTokenFlashLoans,
             osTokenVaultEscrow,
             strategiesRegistry,
-            strategyProxyImplementation,
-            balancerRouter
+            strategyProxyImplementation
         )
     {
         _aavePool = IPool(aavePool);

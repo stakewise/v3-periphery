@@ -31,11 +31,12 @@ import {Errors} from '@stakewise-core/libraries/Errors.sol';
 import {ILeverageStrategy} from '../src/leverage/interfaces/ILeverageStrategy.sol';
 import {StrategiesRegistry, IStrategiesRegistry} from '../src/StrategiesRegistry.sol';
 import {EthAaveLeverageStrategy} from '../src/leverage/EthAaveLeverageStrategy.sol';
+import {BalancerOsTokenSwap} from '../src/leverage/BalancerOsTokenSwap.sol';
 import {OsTokenVaultEscrowAuth} from '../src/OsTokenVaultEscrowAuth.sol';
 import {StrategyProxy} from '../src/StrategyProxy.sol';
 
 contract EthAaveLeverageStrategyTest is Test {
-    uint256 public constant forkBlockNumber = 23_117_000;
+    uint256 public constant forkBlockNumber = 24_590_000;
 
     uint64 public constant liqThresholdPercent = 0.999 ether;
     uint256 public constant liqBonusPercent = 1.001 ether;
@@ -53,13 +54,15 @@ contract EthAaveLeverageStrategyTest is Test {
     address public constant osTokenVaultController = 0x2A261e60FB14586B474C208b1B7AC6D0f5000306;
     address public constant osTokenConfig = 0x287d1e2A8dE183A8bf8f2b09Fa1340fBd766eb59;
     address public constant vaultsRegistry = 0x3a0008a588772446f6e656133C2D5029CC4FC20E;
-    address public constant balancerVault = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
     address public constant aavePool = 0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
     address public constant aaveOracle = 0x54586bE62E3c3580375aE3723C145253060Ca0C2;
     address public constant aaveOsToken = 0x927709711794F3De5DdBF1D176bEE2D55Ba13c21;
     address public constant aaveVarDebtAssetToken = 0xeA51d7853EEFb32b6ee06b1C12E6dcCA88Be0fFE;
     address public constant prevStrategy = 0x48cD14FDB8e72A03C8D952af081DBB127D6281fc;
-    bytes32 public constant balancerPoolId = 0xdacf5fa19b1f720111609043ac67a9818262850c000000000000000000000635;
+    address public constant balancerRouter = 0x136f1EFcC3f8f88516B9E94110D56FDBfB1778d1;
+    address public constant wrappedAssetToken = 0x0bfc9d54Fc184518A81162F8fB99c2eACa081202;
+    address public constant balancerPool = 0x57c23c58B1D8C3292c15BEcF07c62C5c52457A42;
+    address public constant permit2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address public strategiesRegistry = 0x90b82E4b3aa385B4A02B7EBc1892a4BeD6B5c465;
     address public osTokenVaultEscrowAuth = 0xFc8E3E7c919b4392D9F5B27015688e49c80015f0;
     address public osTokenVaultEscrow = 0x09e84205DF7c68907e619D07aFD90143c5763605;
@@ -98,7 +101,6 @@ contract EthAaveLeverageStrategyTest is Test {
             osTokenVaultEscrow,
             strategiesRegistry,
             strategyProxyImplementation,
-            balancerVault,
             aavePool,
             aaveOsToken,
             aaveVarDebtAssetToken
@@ -349,16 +351,6 @@ contract EthAaveLeverageStrategyTest is Test {
         strategy.deposit(vault, 0, address(0));
     }
 
-    function test_deposit_ExitingProxy() public {
-        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
-        IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares / 2, address(0));
-        strategy.enterExitQueue(vault, 1 ether);
-
-        vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
-        strategy.deposit(vault, osTokenShares / 2, address(0));
-    }
-
     function test_deposit_NoPosition() public {
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
@@ -443,16 +435,6 @@ contract EthAaveLeverageStrategyTest is Test {
 
         vm.expectRevert(ILeverageStrategy.InvalidExitQueuePercent.selector);
         strategy.enterExitQueue(vault, 1.1 ether);
-    }
-
-    function test_enterExitQueue_ExitingProxy() public {
-        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
-        IERC20(osToken).approve(strategyProxy, osTokenShares);
-        strategy.deposit(vault, osTokenShares, address(0));
-        strategy.enterExitQueue(vault, 0.5 ether);
-
-        vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
-        strategy.enterExitQueue(vault, 0.5 ether);
     }
 
     function test_enterExitQueue_NoPosition() public {
@@ -544,7 +526,7 @@ contract EthAaveLeverageStrategyTest is Test {
     function test_claimExitedAssets_NoExitPosition() public {
         ILeverageStrategy.ExitPosition memory exitPosition =
             ILeverageStrategy.ExitPosition({positionTicket: 0, timestamp: 0, exitQueueIndex: 0});
-        vm.expectRevert(ILeverageStrategy.ExitQueueNotEntered.selector);
+        vm.expectRevert(ILeverageStrategy.InvalidExitQueueTicket.selector);
         strategy.claimExitedAssets(vault, address(this), exitPosition);
     }
 
@@ -634,7 +616,7 @@ contract EthAaveLeverageStrategyTest is Test {
         vm.stopSnapshotGas();
 
         // fails calling again
-        vm.expectRevert(ILeverageStrategy.ExitQueueNotEntered.selector);
+        vm.expectRevert(ILeverageStrategy.InvalidExitQueueTicket.selector);
         strategy.claimExitedAssets(vault, address(this), exitPosition);
 
         // enter exit queue for full position
@@ -675,55 +657,8 @@ contract EthAaveLeverageStrategyTest is Test {
         vm.assertGt(assetsProfit - lockedAssets, 0, 'assetsProfit - lockedAssets == 0');
     }
 
-    function test_claimExitedAssets_borrowStateFix() public {
-        address user = 0x4ECE718fBe64F7A50929d0f05CF5bf8F67bec3d5;
-        address _vault = 0xe6d8d8aC54461b1C5eD15740EEe322043F696C08;
-        uint256 exitQueueIndex = 432;
-        uint256 positionTicket = 47_324_312_007_370_019_695_536;
-        uint256 timestamp = 1_753_137_647;
-
-        // try claiming from current strategy
-        ILeverageStrategy.ExitPosition memory exitPosition = ILeverageStrategy.ExitPosition({
-            positionTicket: positionTicket, timestamp: timestamp, exitQueueIndex: exitQueueIndex
-        });
-
-        vm.expectRevert();
-        ILeverageStrategy(prevStrategy).claimExitedAssets(_vault, user, exitPosition);
-
-        vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        IStrategiesRegistry(strategiesRegistry)
-            .setStrategyConfig(ILeverageStrategy(prevStrategy).strategyId(), 'upgradeV1', abi.encode(strategy));
-        vm.stopPrank();
-
-        address strategyProxy = ILeverageStrategy(prevStrategy).getStrategyProxy(_vault, user);
-
-        // upgrade to new strategy to test whether applied fix works
-        vm.startPrank(prevStrategy);
-        strategy.setStrategyProxyExiting(strategyProxy);
-        Ownable(strategyProxy).transferOwnership(address(strategy));
-        vm.stopPrank();
-
-        // claim succeeds
-        ILeverageStrategy(strategy).claimExitedAssets(_vault, user, exitPosition);
-    }
-
-    function test_setStrategyProxyExiting_notStrategy() public {
-        vm.expectRevert(Errors.AccessDenied.selector);
-        strategy.setStrategyProxyExiting(address(1));
-    }
-
-    function test_setStrategyProxyExiting_ValueNotChanged() public {
-        vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        IStrategiesRegistry(strategiesRegistry).setStrategy(address(this), true);
-        vm.stopPrank();
-        strategy.setStrategyProxyExiting(address(1));
-
-        vm.expectRevert(Errors.ValueNotChanged.selector);
-        strategy.setStrategyProxyExiting(address(1));
-    }
-
     function test_rescueVaultAssets_ExitQueueNotEntered() public {
-        vm.expectRevert(ILeverageStrategy.ExitQueueNotEntered.selector);
+        vm.expectRevert(ILeverageStrategy.InvalidExitQueueTicket.selector);
         ILeverageStrategy.ExitPosition memory exitPosition =
             ILeverageStrategy.ExitPosition({positionTicket: 0, timestamp: 0, exitQueueIndex: 0});
         strategy.rescueVaultAssets(vault, exitPosition);
@@ -863,18 +798,18 @@ contract EthAaveLeverageStrategyTest is Test {
         strategy.rescueLendingAssets(vault, 1 ether, 0.01 ether);
     }
 
-    function test_rescueLendingAssets_NoBalancerPoolIdConfig() public {
+    function test_rescueLendingAssets_NoOsTokenSwapConfig() public {
         // deposit
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));
         IERC20(osToken).approve(strategyProxy, osTokenShares);
         strategy.deposit(vault, osTokenShares, address(0));
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
-        IStrategiesRegistry(strategiesRegistry).setStrategyConfig(strategy.strategyId(), 'balancerPoolId', bytes(''));
+        IStrategiesRegistry(strategiesRegistry).setStrategyConfig(strategy.strategyId(), 'osTokenSwap', bytes(''));
         vm.stopPrank();
 
         State memory state = _getState();
-        vm.expectRevert(ILeverageStrategy.InvalidBalancerPoolId.selector);
+        vm.expectRevert(ILeverageStrategy.InvalidOsTokenSwap.selector);
         strategy.rescueLendingAssets(vault, state.borrowedAssets, 0.01 ether);
     }
 
@@ -884,9 +819,13 @@ contract EthAaveLeverageStrategyTest is Test {
         IERC20(osToken).approve(strategyProxy, osTokenShares);
         strategy.deposit(vault, osTokenShares, address(0));
 
+        // deploy BalancerOsTokenSwap
+        BalancerOsTokenSwap osTokenSwap =
+            new BalancerOsTokenSwap(osToken, assetToken, wrappedAssetToken, balancerRouter, balancerPool, permit2);
+
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
         IStrategiesRegistry(strategiesRegistry)
-            .setStrategyConfig(strategy.strategyId(), 'balancerPoolId', abi.encode(balancerPoolId));
+            .setStrategyConfig(strategy.strategyId(), 'osTokenSwap', abi.encode(address(osTokenSwap)));
         vm.stopPrank();
 
         uint256 assetsBefore = address(this).balance;
@@ -994,7 +933,6 @@ contract EthAaveLeverageStrategyTest is Test {
                 osTokenVaultEscrow,
                 strategiesRegistry,
                 strategyProxyImplementation,
-                balancerVault,
                 aavePool,
                 aaveOsToken,
                 aaveVarDebtAssetToken
@@ -1006,9 +944,6 @@ contract EthAaveLeverageStrategyTest is Test {
             .setStrategyConfig(strategy.strategyId(), 'upgradeV2', abi.encode(newStrategy));
         vm.stopPrank();
 
-        vm.assertFalse(ILeverageStrategy(newStrategy).isStrategyProxyExiting(strategyProxy), 'StrategyProxy is exiting');
-        vm.assertTrue(ILeverageStrategy(strategy).isStrategyProxyExiting(strategyProxy), 'StrategyProxy is not exiting');
-
         vm.expectEmit(true, true, false, false);
         emit ILeverageStrategy.StrategyProxyUpgraded(vault, address(this), newStrategy);
 
@@ -1017,10 +952,6 @@ contract EthAaveLeverageStrategyTest is Test {
         vm.stopSnapshotGas();
 
         vm.assertEq(StrategyProxy(payable(strategyProxy)).owner(), newStrategy);
-        vm.assertTrue(
-            ILeverageStrategy(newStrategy).isStrategyProxyExiting(strategyProxy), 'StrategyProxy is not exiting'
-        );
-        vm.assertTrue(ILeverageStrategy(strategy).isStrategyProxyExiting(strategyProxy), 'StrategyProxy is not exiting');
     }
 
     receive() external payable {}

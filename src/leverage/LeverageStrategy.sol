@@ -19,7 +19,7 @@ import {IOsTokenConfig} from '@stakewise-core/interfaces/IOsTokenConfig.sol';
 import {IOsTokenFlashLoans} from '@stakewise-core/interfaces/IOsTokenFlashLoans.sol';
 import {IOsTokenFlashLoanRecipient} from '@stakewise-core/interfaces/IOsTokenFlashLoanRecipient.sol';
 import {IVaultVersion} from '@stakewise-core/interfaces/IVaultVersion.sol';
-import {IBalancerRouter} from './interfaces/IBalancerRouter.sol';
+import {IOsTokenSwap} from './interfaces/IOsTokenSwap.sol';
 import {ILeverageStrategy} from './interfaces/ILeverageStrategy.sol';
 import {IStrategiesRegistry} from '../interfaces/IStrategiesRegistry.sol';
 import {IStrategyProxy} from '../interfaces/IStrategyProxy.sol';
@@ -38,7 +38,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     string internal constant _vaultForceExitLtvPercentConfigName = 'vaultForceExitLtvPercent';
     string internal constant _borrowForceExitLtvPercentConfigName = 'borrowForceExitLtvPercent';
     string internal constant _rescueVaultConfigName = 'rescueVault';
-    string internal constant _balancerPoolConfigName = 'balancerPool';
+    string internal constant _osTokenSwapConfigName = 'osTokenSwap';
     string internal constant _strategyUpgradeConfigName = 'upgradeV2';
 
     // Strategy
@@ -50,9 +50,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
     IOsTokenConfig internal immutable _osTokenConfig;
     IOsTokenFlashLoans private immutable _osTokenFlashLoans;
     IOsTokenVaultEscrow internal immutable _osTokenVaultEscrow;
-
-    // Balancer
-    IBalancerRouter private immutable _balancerRouter;
 
     // Tokens
     IERC20 internal immutable _osToken;
@@ -68,7 +65,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
      * @param strategiesRegistry The address of the StrategiesRegistry contract
      * @param strategyProxyImplementation The address of the StrategyProxy implementation
-     * @param balancerRouter The address of the Balancer V3 Router contract
      */
     constructor(
         address osToken,
@@ -78,8 +74,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         address osTokenFlashLoans,
         address osTokenVaultEscrow,
         address strategiesRegistry,
-        address strategyProxyImplementation,
-        address balancerRouter
+        address strategyProxyImplementation
     ) {
         _osToken = IERC20(osToken);
         _assetToken = IERC20(assetToken);
@@ -89,7 +84,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         _osTokenVaultEscrow = IOsTokenVaultEscrow(osTokenVaultEscrow);
         _strategiesRegistry = IStrategiesRegistry(strategiesRegistry);
         _strategyProxyImplementation = strategyProxyImplementation;
-        _balancerRouter = IBalancerRouter(balancerRouter);
     }
 
     /// @inheritdoc ILeverageStrategy
@@ -651,35 +645,23 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         // transfer flashloan to proxy
         SafeERC20.safeTransfer(_osToken, proxy, flashloanOsTokenShares);
 
-        // fetch Balancer pool address to execute swap
-        bytes memory balancerPoolConfig = _strategiesRegistry.getStrategyConfig(strategyId(), _balancerPoolConfigName);
-        if (balancerPoolConfig.length == 0) revert InvalidBalancerPool();
-        address balancerPool = abi.decode(balancerPoolConfig, (address));
+        // fetch osToken swap contract address
+        bytes memory osTokenSwapConfig = _strategiesRegistry.getStrategyConfig(strategyId(), _osTokenSwapConfigName);
+        if (osTokenSwapConfig.length == 0) revert InvalidOsTokenSwap();
+        address osTokenSwap = abi.decode(osTokenSwapConfig, (address));
 
-        // swap osToken shares to assets via Balancer V3 Router
+        // transfer osToken to swap contract
         IStrategyProxy(proxy)
             .execute(
                 address(_osToken),
-                abi.encodeWithSelector(_osToken.approve.selector, address(_balancerRouter), flashloanOsTokenShares)
+                abi.encodeWithSelector(_osToken.transfer.selector, osTokenSwap, flashloanOsTokenShares)
             );
+
+        // swap osToken to asset token
         IStrategyProxy(proxy)
             .execute(
-                address(_balancerRouter),
-                abi.encodeWithSelector(
-                    _balancerRouter.swapSingleTokenExactOut.selector,
-                    balancerPool,
-                    _osToken,
-                    _assetToken,
-                    repayAssets,
-                    flashloanOsTokenShares,
-                    block.timestamp,
-                    false,
-                    ''
-                )
+                osTokenSwap, abi.encodeWithSelector(IOsTokenSwap.swap.selector, flashloanOsTokenShares, repayAssets)
             );
-        // reset approval
-        IStrategyProxy(proxy)
-            .execute(address(_osToken), abi.encodeWithSelector(_osToken.approve.selector, address(_balancerRouter), 0));
 
         // repay borrowed assets
         _repayAssets(proxy, repayAssets);

@@ -8,16 +8,14 @@ import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.s
 import {UUPSUpgradeable} from '@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol';
 import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
-import {IBalancerRouter} from '../leverage/interfaces/IBalancerRouter.sol';
+import {IOsTokenSwap} from '../leverage/interfaces/IOsTokenSwap.sol';
 
 /**
- * @title BalancerRouterMock
+ * @title OsTokenSwapMock
  * @author StakeWise
- * @notice Defines the mock for the Balancer V3 Router contract
+ * @notice Mock implementation of IOsTokenSwap for testing
  */
-contract BalancerRouterMock is IBalancerRouter, Initializable, UUPSUpgradeable, OwnableUpgradeable {
-    error SwapExpired();
-    error InvalidSwap();
+contract OsTokenSwapMock is IOsTokenSwap, Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error LimitExceeded();
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -47,31 +45,24 @@ contract BalancerRouterMock is IBalancerRouter, Initializable, UUPSUpgradeable, 
         __Ownable_init(initialOwner);
     }
 
-    function swapSingleTokenExactOut(
-        address,
-        IERC20 tokenIn,
-        IERC20 tokenOut,
-        uint256 exactAmountOut,
-        uint256 maxAmountIn,
-        uint256 deadline,
-        bool,
-        bytes calldata
-    ) external payable override returns (uint256 amountIn) {
-        if (deadline < block.timestamp) {
-            revert SwapExpired();
-        }
-
-        if (address(tokenIn) != address(_osToken) || address(tokenOut) != address(_assetToken)) {
-            revert InvalidSwap();
-        }
-
-        amountIn = _osTokenVaultController.convertToShares(exactAmountOut);
-        if (amountIn > maxAmountIn) {
+    /// @inheritdoc IOsTokenSwap
+    function swap(
+        uint256 maxOsTokenIn,
+        uint256 exactAmountOut
+    ) external override {
+        uint256 osTokenUsed = _osTokenVaultController.convertToShares(exactAmountOut);
+        if (osTokenUsed > maxOsTokenIn) {
             revert LimitExceeded();
         }
 
-        SafeERC20.safeTransferFrom(_osToken, msg.sender, address(this), amountIn);
+        // send asset token to caller
         SafeERC20.safeTransfer(_assetToken, msg.sender, exactAmountOut);
+
+        // return unused osToken to caller (tokens were sent to this contract before calling swap)
+        uint256 unusedOsToken = _osToken.balanceOf(address(this)) - osTokenUsed;
+        if (unusedOsToken > 0) {
+            SafeERC20.safeTransfer(_osToken, msg.sender, unusedOsToken);
+        }
     }
 
     function drain() external onlyOwner {

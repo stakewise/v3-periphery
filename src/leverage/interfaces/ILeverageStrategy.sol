@@ -16,7 +16,7 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     error InvalidMaxSlippagePercent();
     error InvalidExitQueuePercent();
     error InvalidExitQueueTicket();
-    error InvalidBalancerPool();
+    error InvalidOsTokenSwap();
 
     /**
      * @notice Enum for flashloan actions
