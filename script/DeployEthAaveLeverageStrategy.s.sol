@@ -22,6 +22,7 @@ contract DeployEthAaveLeverageStrategy is Script {
         address rescueVault;
         address governor;
         address strategiesRegistry;
+        address vaultsRegistry;
         address strategyProxyImplementation;
         uint256 maxVaultLtvPercent;
         uint256 maxBorrowLtvPercent;
@@ -48,6 +49,7 @@ contract DeployEthAaveLeverageStrategy is Script {
         params.osTokenSwap = vm.envAddress('OS_TOKEN_SWAP');
         params.governor = vm.envAddress('GOVERNOR');
         params.strategiesRegistry = vm.envAddress('STRATEGIES_REGISTRY');
+        params.vaultsRegistry = vm.envAddress('VAULTS_REGISTRY');
         params.strategyProxyImplementation = vm.envAddress('STRATEGY_PROXY_IMPLEMENTATION');
     }
 
@@ -68,6 +70,7 @@ contract DeployEthAaveLeverageStrategy is Script {
             params.osTokenFlashLoans,
             params.osTokenVaultEscrow,
             params.strategiesRegistry,
+            params.vaultsRegistry,
             params.strategyProxyImplementation,
             params.aavePool,
             params.aaveOsToken,

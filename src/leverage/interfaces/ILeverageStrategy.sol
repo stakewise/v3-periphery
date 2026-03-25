@@ -123,6 +123,32 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     event LendingAssetsRescued(address indexed vault, address indexed user, uint256 osTokenShares, uint256 assets);
 
     /**
+     * @notice Event emitted when the borrow LTV is updated
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @param borrowLtv The new borrow LTV
+     */
+    event BorrowLtvUpdated(address indexed vault, address indexed user, uint256 borrowLtv);
+
+    /**
+     * @notice Event emitted when the position is synced
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @param proxy The address of the strategy proxy
+     * @param borrowLtv The borrow LTV used for syncing
+     */
+    event PositionSynced(address indexed vault, address indexed user, address indexed proxy, uint256 borrowLtv);
+
+    /**
+     * @notice Returns the number of pending exit requests for the proxy
+     * @param proxy The address of the strategy proxy
+     * @return The number of pending exit requests
+     */
+    function pendingExitCount(
+        address proxy
+    ) external view returns (uint256);
+
+    /**
      * @notice Get the strategy proxy address
      * @param vault The address of the vault
      * @param user The address of the user
@@ -134,6 +160,18 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     ) external view returns (address proxy);
 
     /**
+     * @notice Returns the strategy proxy or creates a new one
+     * @param vault The address of the vault
+     * @param user The address of the user
+     * @return proxy The address of the strategy proxy
+     * @return isCreated Whether the proxy was created
+     */
+    function getOrCreateStrategyProxy(
+        address vault,
+        address user
+    ) external returns (address proxy, bool isCreated);
+
+    /**
      * @notice Returns the vault LTV.
      * @param vault The address of the vault
      * @return The vault LTV
@@ -143,10 +181,19 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     ) external view returns (uint256);
 
     /**
-     * @notice Returns the borrow LTV.
-     * @return The borrow LTV
+     * @notice Returns the effective borrow LTV for the proxy. Returns custom LTV if set, otherwise max borrow LTV.
+     * @param proxy The address of the strategy proxy
+     * @return The effective borrow LTV
      */
-    function getBorrowLtv() external view returns (uint256);
+    function getBorrowLtv(
+        address proxy
+    ) external view returns (uint256);
+
+    /**
+     * @notice Returns the max borrow LTV.
+     * @return The max borrow LTV
+     */
+    function getMaxBorrowLtv() external view returns (uint256);
 
     /**
      * @notice Returns the borrow position state for the proxy
@@ -185,11 +232,13 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
      * @notice Calculates the amount of osToken shares to flashloan
      * @param vault The address of the vault
      * @param osTokenShares The amount of osToken shares at hand
+     * @param borrowLtv The borrow LTV to use
      * @return The amount of osToken shares to flashloan
      */
     function getFlashloanOsTokenShares(
         address vault,
-        uint256 osTokenShares
+        uint256 osTokenShares,
+        uint256 borrowLtv
     ) external view returns (uint256);
 
     /**
@@ -221,6 +270,27 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     ) external;
 
     /**
+     * @notice Set the borrow LTV for the strategy proxy. If increased, leverages more assets.
+     *         If decreased, enters the exit queue to deleverage.
+     *         Pass type(uint256).max to reset to the default (max borrow LTV).
+     * @param vault The address of the vault
+     * @param borrowLtv The new borrow LTV or type(uint256).max to reset to default
+     */
+    function setCustomBorrowLtv(
+        address vault,
+        uint256 borrowLtv
+    ) external;
+
+    /**
+     * @notice Syncs the position to match the current borrow LTV.
+     *         If under-leveraged, borrows more. If over-leveraged, enters the exit queue to deleverage.
+     * @param vault The address of the vault
+     */
+    function syncPosition(
+        address vault
+    ) external;
+
+    /**
      * @notice Deposit assets to the strategy
      * @param vault The address of the vault
      * @param osTokenShares Amount of osToken shares to deposit
@@ -244,7 +314,8 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
     ) external returns (uint256 positionTicket);
 
     /**
-     * @notice Force enter the OsToken escrow exit queue. Can be called by anyone if approaching liquidation.
+     * @notice Force enter the OsToken escrow exit queue. Can be called by anyone if approaching liquidation
+     *         or by the vault's admin.
      * @param vault The address of the vault
      * @param user The address of the user
      * @return positionTicket The exit position ticket
@@ -286,6 +357,24 @@ interface ILeverageStrategy is IOsTokenFlashLoanRecipient, IStrategy {
         address vault,
         uint256 assets,
         uint256 maxSlippagePercent
+    ) external;
+
+    /**
+     * @notice Marks the strategy proxy as having a pending exit. Called by the previous strategy version during upgrade.
+     * @param proxy The address of the strategy proxy
+     */
+    function setStrategyProxyExiting(
+        address proxy
+    ) external;
+
+    /**
+     * @notice Executes upgrade logic for a proxy migrated from the previous strategy version.
+     * @param vault The address of the vault
+     * @param proxy The address of the strategy proxy
+     */
+    function executeUpgrade(
+        address vault,
+        address proxy
     ) external;
 
     /**

@@ -18,6 +18,10 @@ import {ILeverageStrategy} from '../leverage/interfaces/ILeverageStrategy.sol';
 import {IStrategiesRegistry} from '../interfaces/IStrategiesRegistry.sol';
 import {IBoostHelpers} from './interfaces/IBoostHelpers.sol';
 
+interface ILeverageStrategyLegacy {
+    function getBorrowLtv() external view returns (uint256);
+}
+
 /**
  * @title BoostHelpers
  * @author StakeWise
@@ -156,8 +160,13 @@ contract BoostHelpers is IBoostHelpers {
         }
 
         if (borrowedAssets >= stakedAssets) {
-            uint256 leftOsTokenAssets =
-                Math.mulDiv(borrowedAssets - stakedAssets, _wad, leverageStrategy.getBorrowLtv());
+            uint256 maxBorrowLtv;
+            try leverageStrategy.getMaxBorrowLtv() returns (uint256 _maxBorrowLtv) {
+                maxBorrowLtv = _maxBorrowLtv;
+            } catch {
+                maxBorrowLtv = ILeverageStrategyLegacy(address(leverageStrategy)).getBorrowLtv();
+            }
+            uint256 leftOsTokenAssets = Math.mulDiv(borrowedAssets - stakedAssets, _wad, maxBorrowLtv);
             int256 _osTokenShares = SafeCast.toInt256(suppliedOsTokenShares) - SafeCast.toInt256(mintedOsTokenShares)
                 - SafeCast.toInt256(_osTokenCtrl.convertToShares(leftOsTokenAssets));
             boost.osTokenShares = _osTokenShares < 0 ? 0 : SafeCast.toUint256(_osTokenShares);

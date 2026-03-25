@@ -100,6 +100,38 @@ contract StakeHelpersTest is Test {
         vault.enterExitQueue(outputData.exitQueueShares, address(this));
     }
 
+    function test_calculateStake_ExistingFullPosition() public {
+        // User already has max osToken position - should get 0 new shares
+        uint256 stakeAssets = 1 ether;
+        vault.deposit{value: stakeAssets}(address(this), address(0));
+
+        // Mint max osToken
+        uint256 maxShares = IOsTokenVaultController(osTokenController).convertToShares(0.9 ether);
+        vault.mintOsToken(address(this), maxShares, address(0));
+
+        // Try to calculate stake for additional deposit - maxOsTokenAssets <= userOsTokenAssets
+        StakeHelpers.StakeInput memory input = StakeHelpers.StakeInput({
+            vault: address(vault), user: address(this), stakeAssets: 0.01 ether, harvestParams: harvestParams
+        });
+        StakeHelpers.StakeOutput memory outputData = stakeHelpers.calculateStake(input);
+        // Should be very small or zero since user is near max LTV
+        assertLe(outputData.receivedOsTokenShares, maxShares);
+    }
+
+    function test_calculateUnstake_NoBurn() public {
+        // User with no osToken position but has stake
+        uint256 stakeAssets = 1 ether;
+        vault.deposit{value: stakeAssets}(address(this), address(0));
+
+        StakeHelpers.UnstakeInput memory input = StakeHelpers.UnstakeInput({
+            vault: address(vault), user: address(this), assets: 0.5 ether, harvestParams: harvestParams
+        });
+        StakeHelpers.UnstakeOutput memory outputData = stakeHelpers.calculateUnstake(input);
+        assertEq(outputData.receivedAssets, 0.5 ether);
+        assertGt(outputData.exitQueueShares, 0);
+        assertEq(outputData.burnOsTokenShares, 0); // no osToken minted so no burn needed
+    }
+
     function test_getMaxUnstakeAssets_noBalance() public {
         uint256 stakeAssets = 1 ether;
         uint256 osTokenAssets = 0.9 ether;

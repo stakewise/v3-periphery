@@ -275,6 +275,57 @@ contract VaultUserLtvTrackerTest is Test {
         assertApproxEqAbs(ltv_2, 0.6 ether, 1 gwei);
     }
 
+    function test_updateSameUser() public {
+        // Test newUser == prevUser early return
+        osTokenShares = IOsTokenVaultController(osTokenVaultController).convertToShares(0.5 ether);
+        IEthVault(vault).depositAndMintOsToken{value: 1 ether}(address(this), osTokenShares, address(0));
+
+        bytes32[] memory proof = new bytes32[](0);
+        IKeeperRewards.HarvestParams memory harvestParams =
+            IKeeperRewards.HarvestParams({rewardsRoot: '0xa', reward: 0, unlockedMevReward: 0, proof: proof});
+
+        // First set the user
+        tracker.updateVaultMaxLtvUser(vault, address(this), harvestParams);
+        uint256 ltv = tracker.getVaultMaxLtv(vault, harvestParams);
+        assertApproxEqAbs(ltv, 0.5 ether, 1 gwei);
+
+        // Update with same user - should return early and not change anything
+        tracker.updateVaultMaxLtvUser(vault, address(this), harvestParams);
+        uint256 ltv2 = tracker.getVaultMaxLtv(vault, harvestParams);
+        assertEq(ltv2, ltv);
+    }
+
+    function test_zeroOsTokenPosition() public {
+        // User with stake but no osToken position
+        IEthVault(vault).deposit{value: 1 ether}(address(this), address(0));
+
+        bytes32[] memory proof = new bytes32[](0);
+        IKeeperRewards.HarvestParams memory harvestParams =
+            IKeeperRewards.HarvestParams({rewardsRoot: '0xa', reward: 0, unlockedMevReward: 0, proof: proof});
+
+        // Update with user that has stake but no osToken
+        tracker.updateVaultMaxLtvUser(vault, address(this), harvestParams);
+
+        // LTV should be 0 because osTokenAssets == 0
+        uint256 ltv = tracker.getVaultMaxLtv(vault, harvestParams);
+        assertEq(ltv, 0);
+    }
+
+    function test_canHarvestPath() public {
+        // Deposit and mint
+        osTokenShares = IOsTokenVaultController(osTokenVaultController).convertToShares(0.5 ether);
+        IEthVault(vault).depositAndMintOsToken{value: 1 ether}(address(this), osTokenShares, address(0));
+
+        // Setup rewards to enable canHarvest
+        vm.warp(vm.getBlockTimestamp() + 1 days);
+        IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, 0.01 ether, 0, 1_685_489_600);
+
+        // Update with canHarvest = true path
+        tracker.updateVaultMaxLtvUser(vault, address(this), harvestParams);
+        uint256 ltv = tracker.getVaultMaxLtv(vault, harvestParams);
+        assertGt(ltv, 0);
+    }
+
     function _collateralizeVault(
         address _vault
     ) private {

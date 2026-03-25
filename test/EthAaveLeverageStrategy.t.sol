@@ -28,6 +28,7 @@ import {EthVaultFactory, IEthVaultFactory} from '@stakewise-core/vaults/ethereum
 import {EthVault, IEthVault} from '@stakewise-core/vaults/ethereum/EthVault.sol';
 import {Keeper} from '@stakewise-core/keeper/Keeper.sol';
 import {Errors} from '@stakewise-core/libraries/Errors.sol';
+import {IVaultAdmin} from '@stakewise-core/interfaces/IVaultAdmin.sol';
 import {ILeverageStrategy} from '../src/leverage/interfaces/ILeverageStrategy.sol';
 import {StrategiesRegistry, IStrategiesRegistry} from '../src/StrategiesRegistry.sol';
 import {EthAaveLeverageStrategy} from '../src/leverage/EthAaveLeverageStrategy.sol';
@@ -58,7 +59,8 @@ contract EthAaveLeverageStrategyTest is Test {
     address public constant aaveOracle = 0x54586bE62E3c3580375aE3723C145253060Ca0C2;
     address public constant aaveOsToken = 0x927709711794F3De5DdBF1D176bEE2D55Ba13c21;
     address public constant aaveVarDebtAssetToken = 0xeA51d7853EEFb32b6ee06b1C12E6dcCA88Be0fFE;
-    address public constant prevStrategy = 0x48cD14FDB8e72A03C8D952af081DBB127D6281fc;
+    address public constant v1Strategy = 0x48cD14FDB8e72A03C8D952af081DBB127D6281fc;
+    address public constant prevStrategy = 0x7575BC9E5168f27B97F9028905A2Adf91d2fF53d;
     address public constant balancerRouter = 0x136f1EFcC3f8f88516B9E94110D56FDBfB1778d1;
     address public constant wrappedAssetToken = 0x0bfc9d54Fc184518A81162F8fB99c2eACa081202;
     address public constant balancerPool = 0x57c23c58B1D8C3292c15BEcF07c62C5c52457A42;
@@ -100,6 +102,7 @@ contract EthAaveLeverageStrategyTest is Test {
             osTokenFlashLoans,
             osTokenVaultEscrow,
             strategiesRegistry,
+            vaultsRegistry,
             strategyProxyImplementation,
             aavePool,
             aaveOsToken,
@@ -877,7 +880,7 @@ contract EthAaveLeverageStrategyTest is Test {
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
         IStrategiesRegistry(strategiesRegistry)
-            .setStrategyConfig(strategy.strategyId(), 'upgradeV2', abi.encode(address(0)));
+            .setStrategyConfig(strategy.strategyId(), 'upgradeV3', abi.encode(address(0)));
         vm.stopPrank();
 
         vm.expectRevert(Errors.ValueNotChanged.selector);
@@ -891,7 +894,7 @@ contract EthAaveLeverageStrategyTest is Test {
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
         IStrategiesRegistry(strategiesRegistry)
-            .setStrategyConfig(strategy.strategyId(), 'upgradeV2', abi.encode(address(strategy)));
+            .setStrategyConfig(strategy.strategyId(), 'upgradeV3', abi.encode(address(strategy)));
         vm.stopPrank();
 
         vm.expectRevert(Errors.ValueNotChanged.selector);
@@ -903,14 +906,12 @@ contract EthAaveLeverageStrategyTest is Test {
         IERC20(osToken).approve(strategyProxy, osTokenShares);
         strategy.deposit(vault, osTokenShares, address(0));
 
-        address newStrategy = address(1);
+        address newStrategy = address(new MockNewStrategy());
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
         IStrategiesRegistry(strategiesRegistry)
-            .setStrategyConfig(strategy.strategyId(), 'upgradeV2', abi.encode(newStrategy));
+            .setStrategyConfig(strategy.strategyId(), 'upgradeV3', abi.encode(newStrategy));
         vm.stopPrank();
 
-        vm.expectEmit(true, true, false, false);
-        emit ILeverageStrategy.StrategyProxyUpgraded(vault, address(this), newStrategy);
         vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_upgradeProxy_withoutExitingPosition');
         strategy.upgradeProxy(vault);
         vm.stopSnapshotGas();
@@ -923,29 +924,12 @@ contract EthAaveLeverageStrategyTest is Test {
         strategy.deposit(vault, osTokenShares, address(0));
         strategy.enterExitQueue(vault, 1 ether);
 
-        address newStrategy = address(
-            new EthAaveLeverageStrategy(
-                osToken,
-                assetToken,
-                osTokenVaultController,
-                osTokenConfig,
-                osTokenFlashLoans,
-                osTokenVaultEscrow,
-                strategiesRegistry,
-                strategyProxyImplementation,
-                aavePool,
-                aaveOsToken,
-                aaveVarDebtAssetToken
-            )
-        );
+        address newStrategy = address(new MockNewStrategy());
 
         vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
         IStrategiesRegistry(strategiesRegistry)
-            .setStrategyConfig(strategy.strategyId(), 'upgradeV2', abi.encode(newStrategy));
+            .setStrategyConfig(strategy.strategyId(), 'upgradeV3', abi.encode(newStrategy));
         vm.stopPrank();
-
-        vm.expectEmit(true, true, false, false);
-        emit ILeverageStrategy.StrategyProxyUpgraded(vault, address(this), newStrategy);
 
         vm.startSnapshotGas('EthAaveLeverageStrategyTest_test_upgradeProxy_withExitingPosition');
         strategy.upgradeProxy(vault);
@@ -954,5 +938,235 @@ contract EthAaveLeverageStrategyTest is Test {
         vm.assertEq(StrategyProxy(payable(strategyProxy)).owner(), newStrategy);
     }
 
+    function test_upgradeProxy_fromV1ToV3() public {
+        ILeverageStrategy v1 = ILeverageStrategy(v1Strategy);
+
+        // create proxy and deposit via V1 strategy
+        address strategyProxy = v1.getStrategyProxy(vault, address(this));
+        IERC20(osToken).approve(strategyProxy, osTokenShares);
+        v1.deposit(vault, osTokenShares, address(0));
+        vm.assertEq(StrategyProxy(payable(strategyProxy)).owner(), v1Strategy);
+
+        // set upgradeV1 config to point to V3 strategy
+        vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
+        IStrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(v1.strategyId(), 'upgradeV1', abi.encode(address(strategy)));
+        vm.stopPrank();
+
+        // upgrade from V1 to V3
+        v1.upgradeProxy(vault);
+        vm.assertEq(StrategyProxy(payable(strategyProxy)).owner(), address(strategy));
+    }
+
+    function test_executeUpgrade_AlwaysReverts() public {
+        vm.expectRevert(Errors.UpgradeFailed.selector);
+        strategy.executeUpgrade(vault, address(this));
+    }
+
+    function test_setStrategyProxyExiting_NotStrategy() public {
+        vm.prank(address(0x999));
+        vm.expectRevert(Errors.AccessDenied.selector);
+        strategy.setStrategyProxyExiting(address(this));
+    }
+
+    function test_getOrCreateStrategyProxy_ZeroUser() public {
+        vm.expectRevert(Errors.ZeroAddress.selector);
+        strategy.getOrCreateStrategyProxy(vault, address(0));
+    }
+
+    function test_getOrCreateStrategyProxy_InvalidVault() public {
+        vm.expectRevert(Errors.InvalidVault.selector);
+        strategy.getOrCreateStrategyProxy(address(0x999), address(this));
+    }
+
+    function test_setCustomBorrowLtv_TooLow() public {
+        vm.expectRevert(Errors.InvalidLtvPercent.selector);
+        strategy.setCustomBorrowLtv(vault, 0.05 ether);
+    }
+
+    function test_setCustomBorrowLtv_TooHigh() public {
+        vm.expectRevert(Errors.InvalidLtvPercent.selector);
+        strategy.setCustomBorrowLtv(vault, 0.99 ether);
+    }
+
+    function test_setCustomBorrowLtv_SameValue() public {
+        // default borrow LTV is max borrow LTV, setting to max should revert
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        strategy.setCustomBorrowLtv(vault, type(uint256).max);
+    }
+
+    function test_setCustomBorrowLtv_WithPendingExits() public {
+        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
+        IERC20(osToken).approve(strategyProxy, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
+        strategy.enterExitQueue(vault, 0.5 ether);
+
+        vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
+        strategy.setCustomBorrowLtv(vault, 0.5 ether);
+    }
+
+    function test_setCustomBorrowLtv_Decrease() public {
+        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
+        IERC20(osToken).approve(strategyProxy, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
+
+        // decrease borrow LTV - should enter exit queue to deleverage
+        vm.expectEmit(true, true, false, false);
+        emit ILeverageStrategy.BorrowLtvUpdated(vault, address(this), 0.5 ether);
+        strategy.setCustomBorrowLtv(vault, 0.5 ether);
+
+        // check pending exit count increased
+        vm.assertGt(strategy.pendingExitCount(strategyProxy), 0, 'pendingExitCount == 0');
+    }
+
+    function test_setCustomBorrowLtv_Increase() public {
+        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
+        IERC20(osToken).approve(strategyProxy, osTokenShares);
+
+        // first set a low borrow LTV
+        strategy.setCustomBorrowLtv(vault, 0.5 ether);
+
+        // deposit
+        strategy.deposit(vault, osTokenShares, address(0));
+
+        State memory state1 = _getState();
+        vm.assertGt(state1.borrowedAssets, 0, 'borrowedAssets == 0');
+
+        // increase borrow LTV - should leverage more
+        vm.expectEmit(true, true, false, false);
+        emit ILeverageStrategy.BorrowLtvUpdated(vault, address(this), 0.8 ether);
+        strategy.setCustomBorrowLtv(vault, 0.8 ether);
+
+        State memory state2 = _getState();
+        vm.assertGt(state2.borrowedAssets, state1.borrowedAssets, 'borrowedAssets did not increase');
+        vm.assertGt(
+            state2.suppliedOsTokenShares, state1.suppliedOsTokenShares, 'suppliedOsTokenShares did not increase'
+        );
+    }
+
+    function test_setCustomBorrowLtv_ResetToMax() public {
+        // set a custom borrow LTV without position
+        strategy.setCustomBorrowLtv(vault, 0.5 ether);
+
+        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
+        vm.assertEq(strategy.getBorrowLtv(strategyProxy), 0.5 ether, 'borrowLtv != 0.5');
+
+        // reset to max using type(uint256).max - no position so it just updates the LTV
+        uint256 maxBorrowLtv = strategy.getMaxBorrowLtv();
+        strategy.setCustomBorrowLtv(vault, type(uint256).max);
+        vm.assertEq(strategy.getBorrowLtv(strategyProxy), maxBorrowLtv, 'borrowLtv != maxBorrowLtv');
+    }
+
+    function test_setCustomBorrowLtv_NoPosition() public {
+        // set custom borrow LTV without any position - should just update the LTV
+        vm.expectEmit(true, true, false, false);
+        emit ILeverageStrategy.BorrowLtvUpdated(vault, address(this), 0.5 ether);
+        strategy.setCustomBorrowLtv(vault, 0.5 ether);
+
+        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
+        vm.assertEq(strategy.getBorrowLtv(strategyProxy), 0.5 ether, 'borrowLtv != 0.5');
+    }
+
+    function test_syncPosition_NoPosition() public {
+        // sync without any position - should just emit event
+        strategy.setCustomBorrowLtv(vault, 0.5 ether);
+        vm.expectEmit(true, true, true, false);
+        emit ILeverageStrategy.PositionSynced(
+            vault, address(this), strategy.getStrategyProxy(vault, address(this)), 0.5 ether
+        );
+        strategy.syncPosition(vault);
+    }
+
+    function test_syncPosition_WithPendingExits() public {
+        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
+        IERC20(osToken).approve(strategyProxy, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
+        strategy.enterExitQueue(vault, 0.5 ether);
+
+        vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
+        strategy.syncPosition(vault);
+    }
+
+    function test_syncPosition_Noop() public {
+        // deposit at default LTV, then sync - should be a no-op (position already at target)
+        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
+        IERC20(osToken).approve(strategyProxy, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
+
+        State memory state1 = _getState();
+
+        // sync should not change the position
+        strategy.syncPosition(vault);
+
+        State memory state2 = _getState();
+        vm.assertEq(state2.borrowedAssets, state1.borrowedAssets, 'borrowedAssets changed');
+        vm.assertEq(state2.suppliedOsTokenShares, state1.suppliedOsTokenShares, 'suppliedOsTokenShares changed');
+    }
+
+    function test_forceEnterExitQueue_VaultAdmin() public {
+        address user = address(0xABC);
+        vm.deal(user, 2 ether);
+        vm.startPrank(user);
+        IEthVault(vault).depositAndMintOsToken{value: 1 ether}(user, type(uint256).max, address(0));
+        uint256 userOsTokenShares = IERC20(osToken).balanceOf(user);
+
+        address strategyProxy = strategy.getStrategyProxy(vault, user);
+        IERC20(osToken).approve(strategyProxy, userOsTokenShares);
+        strategy.deposit(vault, userOsTokenShares, address(0));
+        vm.stopPrank();
+
+        // vault admin (address(this)) can force enter exit queue without LTV checks
+        vm.expectEmit(true, true, false, false);
+        emit ILeverageStrategy.ExitQueueEntered(vault, user, 0, vm.getBlockTimestamp(), 0, 1 ether);
+        strategy.forceEnterExitQueue(vault, user);
+    }
+
+    function test_deposit_NoBorrow() public {
+        // Create position with very low borrow LTV first
+        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
+
+        // Set a low custom borrow LTV
+        strategy.setCustomBorrowLtv(vault, 0.5 ether);
+
+        IERC20(osToken).approve(strategyProxy, type(uint256).max);
+        strategy.deposit(vault, osTokenShares, address(0));
+
+        // Deposit a very small amount - supplied so much that can't borrow more
+        // Deposit more osTokenShares which saturate the borrow capacity
+        IEthVault(vault).depositAndMintOsToken{value: 100 ether}(address(this), type(uint256).max, address(0));
+        uint256 newOsTokenShares = IERC20(osToken).balanceOf(address(this));
+
+        // This deposit should hit the "nothing to borrow" branch
+        vm.expectEmit(true, true, false, false);
+        emit ILeverageStrategy.Deposited(vault, address(this), newOsTokenShares, 0, address(0));
+        strategy.deposit(vault, newOsTokenShares, address(0));
+    }
+
+    function test_getVaultState_NotHarvested() public {
+        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
+
+        // set vault rewards so vault needs harvesting
+        vm.warp(vm.getBlockTimestamp() + 1 days);
+        uint256 avgRewardPerSecond = IOsTokenVaultController(osTokenVaultController).avgRewardPerSecond();
+        int256 reward = SafeCast.toInt256(IEthVault(vault).totalAssets() * 0.03 ether / 1 ether / 12);
+        _setVaultRewards(vault, reward, 0, avgRewardPerSecond);
+
+        // warp more so vault state update is required
+        vm.warp(vm.getBlockTimestamp() + 30 days);
+        reward = SafeCast.toInt256(IEthVault(vault).totalAssets() * 0.03 ether / 1 ether / 12);
+        _setVaultRewards(vault, reward, 0, avgRewardPerSecond);
+
+        // now vault state update is required - getVaultState should revert
+        vm.expectRevert(Errors.NotHarvested.selector);
+        strategy.getVaultState(vault, strategyProxy);
+    }
+
     receive() external payable {}
+}
+
+contract MockNewStrategy {
+    function executeUpgrade(
+        address,
+        address
+    ) external pure {}
 }
