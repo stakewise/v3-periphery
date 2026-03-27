@@ -8,8 +8,8 @@
   "EthAaveLeverageStrategyTest_test_forceEnterExitQueue_borrowForceExitLtvPercent": "303501",
   "EthAaveLeverageStrategyTest_test_forceEnterExitQueue_vaultForceExitLtvPercent": "254576",
   "EthAaveLeverageStrategyTest_test_permit": "380105",
-  "EthAaveLeverageStrategyTest_test_rescueLendingAssets1": "801737",
-  "EthAaveLeverageStrategyTest_test_rescueLendingAssets2": "696875",
+  "EthAaveLeverageStrategyTest_test_rescueLendingAssets1": "801777",
+  "EthAaveLeverageStrategyTest_test_rescueLendingAssets2": "696907",
   "EthAaveLeverageStrategyTest_test_rescueVaultAssets": "657099",
   "EthAaveLeverageStrategyTest_test_upgradeProxy_withExitingPosition": "63375",
   "EthAaveLeverageStrategyTest_test_upgradeProxy_withoutExitingPosition": "63375"
