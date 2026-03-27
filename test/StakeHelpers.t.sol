@@ -114,8 +114,8 @@ contract StakeHelpersTest is Test {
             vault: address(vault), user: address(this), stakeAssets: 0.01 ether, harvestParams: harvestParams
         });
         StakeHelpers.StakeOutput memory outputData = stakeHelpers.calculateStake(input);
-        // Should be very small or zero since user is near max LTV
-        assertLe(outputData.receivedOsTokenShares, maxShares);
+        // Should be very small since user is near max LTV
+        assertLe(outputData.receivedOsTokenShares, 0.01 ether);
     }
 
     function test_calculateUnstake_NoBurn() public {
