@@ -259,9 +259,6 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         uint256 currentBorrowLtv = getBorrowLtv(proxy);
         if (borrowLtv == currentBorrowLtv) revert Errors.ValueNotChanged();
 
-        // check no pending exit requests
-        if (pendingExitCount[proxy] != 0) revert Errors.ExitRequestNotProcessed();
-
         // update custom borrow LTV (store 0 to reset to default)
         _customBorrowLtvs[proxy] = borrowLtv == maxBorrowLtv ? 0 : borrowLtv;
 
@@ -546,6 +543,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         address,
         address
     ) external pure {
+        // This is the first version of the strategy with executeUpgrade function, so it will never be called.
         revert Errors.UpgradeFailed();
     }
 
@@ -814,6 +812,7 @@ abstract contract LeverageStrategy is Multicall, ILeverageStrategy {
         bytes memory osTokenSwapConfig = _strategiesRegistry.getStrategyConfig(strategyId(), _osTokenSwapConfigName);
         if (osTokenSwapConfig.length == 0) revert InvalidOsTokenSwap();
         address osTokenSwap = abi.decode(osTokenSwapConfig, (address));
+        if (osTokenSwap == address(0)) revert InvalidOsTokenSwap();
 
         // transfer osToken to swap contract
         IStrategyProxy(proxy)

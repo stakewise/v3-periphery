@@ -816,6 +816,22 @@ contract EthAaveLeverageStrategyTest is Test {
         strategy.rescueLendingAssets(vault, state.borrowedAssets, 0.01 ether);
     }
 
+    function test_rescueLendingAssets_ZeroOsTokenSwap() public {
+        // deposit
+        address strategyProxy = strategy.getStrategyProxy(vault, address(this));
+        IERC20(osToken).approve(strategyProxy, osTokenShares);
+        strategy.deposit(vault, osTokenShares, address(0));
+
+        vm.startPrank(StrategiesRegistry(strategiesRegistry).owner());
+        IStrategiesRegistry(strategiesRegistry)
+            .setStrategyConfig(strategy.strategyId(), 'osTokenSwap', abi.encode(address(0)));
+        vm.stopPrank();
+
+        State memory state = _getState();
+        vm.expectRevert(ILeverageStrategy.InvalidOsTokenSwap.selector);
+        strategy.rescueLendingAssets(vault, state.borrowedAssets, 0.01 ether);
+    }
+
     function test_rescueLendingAssets() public {
         // deposit
         address strategyProxy = strategy.getStrategyProxy(vault, address(this));

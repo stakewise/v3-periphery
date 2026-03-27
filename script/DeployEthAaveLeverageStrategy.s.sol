@@ -28,7 +28,6 @@ contract DeployEthAaveLeverageStrategy is Script {
         uint256 maxBorrowLtvPercent;
         uint256 vaultForceExitLtvPercent;
         uint256 borrowForceExitLtvPercent;
-        address osTokenSwap;
     }
 
     function _readEnvVariables() internal view returns (ConfigParams memory params) {
@@ -46,7 +45,6 @@ contract DeployEthAaveLeverageStrategy is Script {
         params.vaultForceExitLtvPercent = vm.envUint('VAULT_FORCE_EXIT_LTV_PERCENT');
         params.borrowForceExitLtvPercent = vm.envUint('BORROW_FORCE_EXIT_LTV_PERCENT');
         params.rescueVault = vm.envAddress('RESCUE_VAULT');
-        params.osTokenSwap = vm.envAddress('OS_TOKEN_SWAP');
         params.governor = vm.envAddress('GOVERNOR');
         params.strategiesRegistry = vm.envAddress('STRATEGIES_REGISTRY');
         params.vaultsRegistry = vm.envAddress('VAULTS_REGISTRY');
