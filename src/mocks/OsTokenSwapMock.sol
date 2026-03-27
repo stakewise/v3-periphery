@@ -8,17 +8,14 @@ import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.s
 import {UUPSUpgradeable} from '@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol';
 import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import {IOsTokenVaultController} from '@stakewise-core/interfaces/IOsTokenVaultController.sol';
-import {IBalancerVault} from '../leverage/interfaces/IBalancerVault.sol';
+import {IOsTokenSwap} from '../leverage/interfaces/IOsTokenSwap.sol';
 
 /**
- * @title BalancerVaultMock
+ * @title OsTokenSwapMock
  * @author StakeWise
- * @notice Defines the mock for the Balancer Vault contract
+ * @notice Mock implementation of IOsTokenSwap for testing
  */
-contract BalancerVaultMock is IBalancerVault, Initializable, UUPSUpgradeable, OwnableUpgradeable {
-    error SwapExpired();
-    error InvalidSingleSwap();
-    error InvalidFundManagement();
+contract OsTokenSwapMock is IOsTokenSwap, Initializable, UUPSUpgradeable, OwnableUpgradeable {
     error LimitExceeded();
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -39,6 +36,7 @@ contract BalancerVaultMock is IBalancerVault, Initializable, UUPSUpgradeable, Ow
         _osToken = IERC20(osToken);
         _assetToken = IERC20(assetToken);
         _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
+        _disableInitializers();
     }
 
     function initialize(
@@ -47,34 +45,24 @@ contract BalancerVaultMock is IBalancerVault, Initializable, UUPSUpgradeable, Ow
         __Ownable_init(initialOwner);
     }
 
+    /// @inheritdoc IOsTokenSwap
     function swap(
-        SingleSwap calldata singleSwap,
-        FundManagement calldata funds,
-        uint256 limit,
-        uint256 deadline
-    ) external payable override returns (uint256 amountIn) {
-        if (deadline < block.timestamp) {
-            revert SwapExpired();
-        }
-
-        if (
-            singleSwap.kind != SwapKind.GIVEN_OUT || singleSwap.assetIn != address(_osToken)
-                || singleSwap.assetOut != address(_assetToken)
-        ) {
-            revert InvalidSingleSwap();
-        }
-
-        if (funds.sender != msg.sender || funds.fromInternalBalance || funds.toInternalBalance) {
-            revert InvalidFundManagement();
-        }
-
-        amountIn = _osTokenVaultController.convertToShares(singleSwap.amount);
-        if (amountIn > limit) {
+        uint256 maxOsTokenIn,
+        uint256 exactAmountOut
+    ) external override {
+        uint256 osTokenUsed = _osTokenVaultController.convertToShares(exactAmountOut);
+        if (osTokenUsed > maxOsTokenIn) {
             revert LimitExceeded();
         }
 
-        SafeERC20.safeTransferFrom(_osToken, msg.sender, address(this), amountIn);
-        SafeERC20.safeTransfer(_assetToken, funds.recipient, singleSwap.amount);
+        // send asset token to caller
+        SafeERC20.safeTransfer(_assetToken, msg.sender, exactAmountOut);
+
+        // return unused osToken to caller (tokens were sent to this contract before calling swap)
+        uint256 unusedOsToken = _osToken.balanceOf(address(this)) - osTokenUsed;
+        if (unusedOsToken > 0) {
+            SafeERC20.safeTransfer(_osToken, msg.sender, unusedOsToken);
+        }
     }
 
     function drain() external onlyOwner {

@@ -5,9 +5,9 @@ pragma solidity ^0.8.26;
 import {Script} from 'forge-std/Script.sol';
 import {console} from 'forge-std/console.sol';
 import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
-import {BalancerVaultMock} from '../src/mocks/BalancerVaultMock.sol';
+import {OsTokenSwapMock} from '../src/mocks/OsTokenSwapMock.sol';
 
-contract DeployBalancerVaultMock is Script {
+contract DeployOsTokenSwapMock is Script {
     struct ConfigParams {
         address osToken;
         address assetToken;
@@ -30,12 +30,12 @@ contract DeployBalancerVaultMock is Script {
         // Read environment variables.
         ConfigParams memory params = _readEnvVariables();
 
-        // Deploy BalancerVaultMock mock.
+        // Deploy OsTokenSwapMock.
         address implementation =
-            address(new BalancerVaultMock(params.osToken, params.assetToken, params.osTokenVaultController));
-        address balancerVaultMock = address(new ERC1967Proxy(implementation, ''));
-        BalancerVaultMock(balancerVaultMock).initialize(params.governor);
-        console.log('BalancerVaultMock deployed at: ', balancerVaultMock);
+            address(new OsTokenSwapMock(params.osToken, params.assetToken, params.osTokenVaultController));
+        address osTokenSwapMock = address(new ERC1967Proxy(implementation, ''));
+        OsTokenSwapMock(osTokenSwapMock).initialize(params.governor);
+        console.log('OsTokenSwapMock deployed at: ', osTokenSwapMock);
 
         vm.stopBroadcast();
     }

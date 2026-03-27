@@ -30,8 +30,8 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
      * @param osTokenFlashLoans The address of the OsTokenFlashLoans contract
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
      * @param strategiesRegistry The address of the StrategiesRegistry contract
+     * @param vaultsRegistry The address of the VaultsRegistry contract
      * @param strategyProxyImplementation The address of the StrategyProxy implementation
-     * @param balancerVault The address of the BalancerVault contract
      * @param aavePool The address of the Aave pool contract
      * @param aaveOsToken The address of the Aave OsToken contract
      * @param aaveVarDebtAssetToken The address of the Aave variable debt asset token contract
@@ -44,8 +44,8 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
         address osTokenFlashLoans,
         address osTokenVaultEscrow,
         address strategiesRegistry,
+        address vaultsRegistry,
         address strategyProxyImplementation,
-        address balancerVault,
         address aavePool,
         address aaveOsToken,
         address aaveVarDebtAssetToken
@@ -58,8 +58,8 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
             osTokenFlashLoans,
             osTokenVaultEscrow,
             strategiesRegistry,
-            strategyProxyImplementation,
-            balancerVault
+            vaultsRegistry,
+            strategyProxyImplementation
         )
     {
         _aavePool = IPool(aavePool);
@@ -68,7 +68,7 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
     }
 
     /// @inheritdoc ILeverageStrategy
-    function getBorrowLtv() public view override returns (uint256) {
+    function getMaxBorrowLtv() public view override returns (uint256) {
         // convert to 1e18 precision
         uint256 aaveLtv = uint256(_aavePool.getEModeCategoryCollateralConfig(_emodeCategory).ltv) * 1e14;
 
@@ -147,11 +147,11 @@ abstract contract AaveLeverageStrategy is LeverageStrategy {
     }
 
     /// @inheritdoc LeverageStrategy
-    function _getOrCreateStrategyProxy(
+    function getOrCreateStrategyProxy(
         address vault,
         address user
-    ) internal virtual override returns (address proxy, bool isCreated) {
-        (proxy, isCreated) = super._getOrCreateStrategyProxy(vault, user);
+    ) public virtual override returns (address proxy, bool isCreated) {
+        (proxy, isCreated) = super.getOrCreateStrategyProxy(vault, user);
         if (!isCreated) {
             return (proxy, isCreated);
         }

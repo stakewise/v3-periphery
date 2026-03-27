@@ -13,7 +13,7 @@ import {MerkleDistributor} from '../src/MerkleDistributor.sol';
 import {IMerkleDistributor} from '../src/interfaces/IMerkleDistributor.sol';
 
 contract MerkleDistributorTest is Test {
-    uint256 public constant forkBlockNumber = 21_264_254;
+    uint256 public constant forkBlockNumber = 24_590_000;
 
     MerkleDistributor public distributor;
     IKeeperOracles public keeper = IKeeperOracles(0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5);

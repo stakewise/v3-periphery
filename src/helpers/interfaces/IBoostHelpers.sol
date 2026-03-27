@@ -60,14 +60,14 @@ interface IBoostHelpers {
      * @param user The address of the user
      * @param vault The address of the vault
      * @param harvestParams The harvest parameters to update the vault state if needed.
-     * @param exitRequest The exit request details if there is an exiting position.
+     * @param exitRequests An array of exit request details if there are exiting positions.
      * @return osTokenShares The amount of osToken shares boosted
      */
     function getBoostOsTokenShares(
         address user,
         address vault,
         IKeeperRewards.HarvestParams memory harvestParams,
-        ExitRequest calldata exitRequest
+        ExitRequest[] calldata exitRequests
     ) external returns (uint256 osTokenShares);
 
     /**
@@ -75,13 +75,13 @@ interface IBoostHelpers {
      * @param user The address of the user
      * @param vault The address of the vault
      * @param harvestParams The harvest parameters to update the vault state if needed.
-     * @param exitRequest The exit request details if there is an exiting position.
+     * @param exitRequests An array of exit request details if there are exiting positions.
      * @return boost The boost details
      */
     function getBoostDetails(
         address user,
         address vault,
         IKeeperRewards.HarvestParams memory harvestParams,
-        ExitRequest calldata exitRequest
+        ExitRequest[] calldata exitRequests
     ) external returns (BoostDetails memory);
 }

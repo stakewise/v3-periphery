@@ -96,6 +96,24 @@ contract StrategiesRegistryTest is Test {
         registry.addStrategyProxy(proxyId, proxy);
     }
 
+    function test_getStrategyConfig() public {
+        bytes32 strategyId = bytes32('strategy-id');
+        string memory configName = 'config-key';
+
+        // Initially config is empty
+        bytes memory configValue = registry.getStrategyConfig(strategyId, configName);
+        assertEq(configValue.length, 0);
+
+        // Set the config
+        bytes memory value = abi.encode(uint256(42));
+        vm.prank(owner);
+        registry.setStrategyConfig(strategyId, configName, value);
+
+        // Read it back
+        configValue = registry.getStrategyConfig(strategyId, configName);
+        assertEq(abi.decode(configValue, (uint256)), 42);
+    }
+
     function test_setStrategyConfig() public {
         bytes32 strategyId = bytes32('strategy-id');
         string memory configName = 'config-key';

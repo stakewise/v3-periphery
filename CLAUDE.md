@@ -49,7 +49,6 @@ This is the StakeWise v3 periphery contracts repository containing supplementary
 
 Chain-specific implementations:
 - `EthAaveLeverageStrategy` - Ethereum mainnet with Aave V3
-- `GnoAaveLeverageStrategy` - Gnosis chain with Aave V3
 
 **TokensConverter** (`src/converters/`): Converts reward tokens to vault asset tokens via CoW Protocol swaps. Uses composable conditional orders.
 
